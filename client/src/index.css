@@ -1,9 +1,34 @@
 @import "tailwindcss";
 
+html,
+body {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
+#root {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+  min-height: 100vh;
+}
+
 @layer base {
   body {
     @apply bg-gradient-to-b from-red-50/40 via-white to-red-50/30 text-slate-800 font-sans antialiased selection:bg-red-600 selection:text-white min-h-screen;
   }
+}
+
+/* Hide scrollbar for clean horizontal mobile swipes */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Red and white custom scrollbar */
@@ -20,4 +45,20 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #ef4444;
+}
+
+/* Floating Toast Notification Animation */
+@keyframes toastSlideDown {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -24px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.animate-toast {
+  animation: toastSlideDown 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

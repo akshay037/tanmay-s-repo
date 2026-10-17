@@ -186,7 +186,7 @@ export default function Profile() {
             <button
               type="submit"
               disabled={isUpdating}
-              className="py-3 px-6 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-red-500/25 transition-all disabled:opacity-50"
+              className="w-full sm:w-auto py-3 px-6 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-red-500/25 transition-all disabled:opacity-50"
             >
               {isUpdating ? 'Updating Password...' : 'Update Password'}
             </button>

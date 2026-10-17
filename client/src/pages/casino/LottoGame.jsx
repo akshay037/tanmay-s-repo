@@ -27,6 +27,7 @@ import {
   Volume2,
   VolumeX,
   ChevronRight,
+  Coins,
   X
 } from 'lucide-react';
 
@@ -217,17 +218,31 @@ export default function LottoGame({ onNavigate }) {
   };
 
   // State: Allows selecting up to 2 options at a time
-  const [selectedOptions, setSelectedOptions] = useState([
-    { market: 'TOP1', selection: 'ODD' }
-  ]);
-  const [stake, setStake] = useState(50);
-  const [customStake, setCustomStake] = useState('');
+  const [selectedOptions, setSelectedOptions] = useState([]);
+  const [stake, setStake] = useState('');
   const [activeTab, setActiveTab] = useState('bet'); // 'bet', 'history', 'my-bets'
   const [isNoPointsModalOpen, setIsNoPointsModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
   const [betSuccessMsg, setBetSuccessMsg] = useState('');
   const [betErrorMsg, setBetErrorMsg] = useState('');
+
+  // Auto-dismiss alert messages after 5 seconds
+  useEffect(() => {
+    if (!betSuccessMsg) return;
+    const timer = setTimeout(() => {
+      setBetSuccessMsg('');
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [betSuccessMsg]);
+
+  useEffect(() => {
+    if (!betErrorMsg) return;
+    const timer = setTimeout(() => {
+      setBetErrorMsg('');
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [betErrorMsg]);
 
   // Fake Live Chat State
   const [chatMessages, setChatMessages] = useState(INITIAL_CHAT_MESSAGES);
@@ -331,7 +346,7 @@ export default function LottoGame({ onNavigate }) {
     };
   }, [isRevealWindow, previousRound]);
 
-  const activeStake = customStake ? parseInt(customStake, 10) || 0 : stake;
+  const activeStake = parseInt(stake, 10) || 0;
   const totalRequiredStake = activeStake * selectedOptions.length;
 
   const optionDetails = selectedOptions.map((opt) => {
@@ -420,6 +435,8 @@ export default function LottoGame({ onNavigate }) {
       const resTime = currentRound?.resultTimeFormatted || localClock.resultTimeFormatted;
       setBetSuccessMsg(res.message || `Order Placed! Result at ${resTime}!`);
       setIsConfirmModalOpen(false);
+      setSelectedOptions([]);
+      setStake('');
       refetchRound();
       refetchMyBets();
     } catch (err) {
@@ -457,26 +474,26 @@ export default function LottoGame({ onNavigate }) {
   const displayNextResultTime = currentRound?.nextResultTimeFormatted || localClock.nextResultTimeFormatted;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50 via-white to-red-50/60 text-slate-800 font-sans pb-16">
-      <div className="max-w-6xl mx-auto px-3 sm:px-4 space-y-5 pt-3">
+    <div className="min-h-screen bg-gradient-to-b from-red-50 via-white to-red-50/60 text-slate-800 font-sans pb-16 w-full max-w-full overflow-hidden">
+      <div className="max-w-6xl mx-auto px-2 sm:px-4 space-y-4 sm:space-y-5 pt-2 sm:pt-3 w-full max-w-full">
         {/* 1. Game title header — matches slots, roulette, crash, etc. */}
-        <header className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white border-2 border-red-200 p-5 rounded-3xl shadow-md text-center sm:text-left">
-          <div className="flex flex-col sm:flex-row items-center gap-3">
+        <header className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 bg-white border-2 border-red-200 p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl shadow-md text-center sm:text-left w-full max-w-full">
+          <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
             <button
               onClick={() => onNavigate('casino')}
-              className="p-2.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded-2xl transition-colors"
+              className="p-2 sm:p-2.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded-xl sm:rounded-2xl transition-colors shrink-0"
               title="Back to Casino"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
             <div>
-              <h1 className="text-xl font-black text-red-800 tracking-wide flex flex-wrap items-center justify-center sm:justify-start gap-2">
+              <h1 className="text-base sm:text-xl font-black text-red-800 tracking-wide flex flex-wrap items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
                 <span>LOTTO 99 • NUMBER PREDICTION</span>
-                <span className="px-2 py-0.5 text-[10px] uppercase font-black bg-red-600 text-white rounded-full">
+                <span className="px-2 py-0.5 text-[9px] sm:text-[10px] uppercase font-black bg-red-600 text-white rounded-full">
                   2.127x Max
                 </span>
               </h1>
-              <p className="text-xs text-slate-500 font-semibold">
+              <p className="text-[11px] sm:text-xs text-slate-500 font-semibold">
                 Live 3-minute 10-ball draws. Predict TOP 1, TOP 2, or TOP 1+2.
               </p>
             </div>
@@ -484,52 +501,52 @@ export default function LottoGame({ onNavigate }) {
         </header>
 
         {/* 2. CONTINUOUS 3-MINUTE CYCLE BANNER (RED & WHITE THEME) */}
-        <div className="bg-white border-2 border-red-200 rounded-3xl p-5 sm:p-6 shadow-xl relative overflow-hidden">
+        <div className="bg-white border-2 border-red-200 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-xl relative overflow-hidden w-full max-w-full">
           {/* Top highlight bar */}
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-red-600 via-rose-500 to-red-600" />
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-center">
             {/* Left: Round ID & Status */}
-            <div className="space-y-2 text-center sm:text-left flex flex-col items-center sm:items-start">
-              <div className="flex items-center justify-center sm:justify-start space-x-2 text-xs font-bold text-red-700 uppercase tracking-wider">
-                <Clock className="w-4 h-4" />
+            <div className="space-y-1.5 sm:space-y-2 text-center sm:text-left flex flex-col items-center sm:items-start">
+              <div className="flex items-center justify-center sm:justify-start space-x-2 text-[11px] sm:text-xs font-bold text-red-700 uppercase tracking-wider">
+                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span>Continuous 3-Minute Draw System</span>
               </div>
 
-              <div className="text-3xl sm:text-4xl font-mono font-black text-slate-900 tracking-tight">
+              <div className="text-2xl sm:text-4xl font-mono font-black text-slate-900 tracking-tight">
                 #{currentRound?.roundNumber || '20261012-0001'}
               </div>
 
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 pt-1">
                 <span
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider shadow-sm ${
+                  className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-sm ${
                     isBettingOpen
                       ? 'bg-emerald-100 text-emerald-800 border-2 border-emerald-300'
                       : 'bg-red-100 text-red-800 border-2 border-red-400 animate-pulse'
                   }`}
                 >
-                  <span className={`w-2.5 h-2.5 rounded-full ${isBettingOpen ? 'bg-emerald-500' : 'bg-red-600'}`} />
+                  <span className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full ${isBettingOpen ? 'bg-emerald-500' : 'bg-red-600'}`} />
                   <span>{isBettingOpen ? 'BETTING OPEN' : 'DRAWING WINNING BALLS'}</span>
                 </span>
-                <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
+                <span className="text-[10px] sm:text-xs font-bold text-slate-500 bg-slate-100 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-slate-200">
                   Fixed 3-Min Intervals
                 </span>
               </div>
             </div>
 
             {/* Middle: Big Countdown Clock */}
-            <div className="bg-gradient-to-br from-red-50 to-rose-50 border-2 border-red-200 rounded-3xl p-4 sm:p-5 text-center shadow-inner">
-              <span className="text-[11px] uppercase font-black tracking-wider text-red-700 block mb-1">
+            <div className="bg-gradient-to-br from-red-50 to-rose-50 border-2 border-red-200 rounded-2xl sm:rounded-3xl p-3 sm:p-5 text-center shadow-inner">
+              <span className="text-[10px] sm:text-[11px] uppercase font-black tracking-wider text-red-700 block mb-1">
                 {isBettingOpen ? 'Betting Closes & Result At' : '15-Sec Reveal Window Ending In'}
               </span>
 
-              <div className="text-5xl sm:text-6xl font-mono font-black text-red-600 tracking-tight drop-shadow-sm">
+              <div className="text-4xl sm:text-6xl font-mono font-black text-red-600 tracking-tight drop-shadow-sm">
                 {isBettingOpen ? formatTime(displayTimeLeft) : `${displayRevealLeft}s`}
               </div>
 
-              <p className="text-xs font-bold text-slate-600 mt-1.5">
+              <p className="text-[11px] sm:text-xs font-bold text-slate-600 mt-1">
                 {isBettingOpen ? (
-                  <span>Result Shown At: <b className="text-red-700 font-mono text-sm">{displayResultTime}</b></span>
+                  <span>Result Shown At: <b className="text-red-700 font-mono text-xs sm:text-sm">{displayResultTime}</b></span>
                 ) : (
                   <span className="text-red-700 font-black">Revealing numbers! Next round opens after 15s.</span>
                 )}
@@ -537,12 +554,12 @@ export default function LottoGame({ onNavigate }) {
             </div>
 
             {/* Right: Wall-Clock Schedule Details */}
-            <div className="bg-white border-2 border-red-100 rounded-3xl p-4 space-y-2 text-xs shadow-sm">
-              <div className="flex items-center justify-between border-b border-red-100 pb-1.5">
+            <div className="bg-white border-2 border-red-100 rounded-2xl sm:rounded-3xl p-3 sm:p-4 space-y-1.5 sm:space-y-2 text-[11px] sm:text-xs shadow-sm">
+              <div className="flex items-center justify-between border-b border-red-100 pb-1">
                 <span className="font-semibold text-slate-500">Current Round Result:</span>
                 <span className="font-mono font-black text-red-700">{displayResultTime}</span>
               </div>
-              <div className="flex items-center justify-between border-b border-red-100 pb-1.5">
+              <div className="flex items-center justify-between border-b border-red-100 pb-1">
                 <span className="font-semibold text-slate-500">Next Game Starts:</span>
                 <span className="font-mono font-bold text-slate-800">{displayNextGameStart}</span>
               </div>
@@ -550,28 +567,28 @@ export default function LottoGame({ onNavigate }) {
                 <span className="font-semibold text-slate-500">Next Game Result:</span>
                 <span className="font-mono font-bold text-emerald-700">{displayNextResultTime}</span>
               </div>
-              <div className="p-2 bg-red-50/80 rounded-xl text-[11px] text-red-800 leading-snug">
+              <div className="p-1.5 sm:p-2 bg-red-50/80 rounded-xl text-[10px] sm:text-[11px] text-red-800 leading-snug">
                 <b>Rule:</b> Orders placed now reveal results at <b>{displayResultTime}</b>. Next round begins 15 seconds after reveal!
               </div>
             </div>
           </div>
 
           {/* 3. TEN NUMBERED BALLS DISPLAY (1 TO 10) */}
-          <div className="mt-6 pt-5 border-t-2 border-red-100">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left mb-3">
-              <div className="flex items-center justify-center sm:justify-start space-x-2">
-                <Sparkles className="w-4 h-4 text-red-600" />
-                <span className="text-xs font-black uppercase tracking-wider text-slate-800">
+          <div className="mt-4 sm:mt-6 pt-3.5 sm:pt-5 border-t-2 border-red-100">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-1.5 sm:gap-2 text-center sm:text-left mb-2.5 sm:mb-3">
+              <div className="flex items-center justify-center sm:justify-start space-x-1.5 sm:space-x-2">
+                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-600 shrink-0" />
+                <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-800">
                   {isRevealWindow ? 'Drawing Numbers (15-Second Window)...' : 'Drawn Numbers Sequence (Positions 1 to 10)'}
                 </span>
               </div>
-              <span className="text-[11px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-lg border border-red-200">
+              <span className="text-[10px] sm:text-[11px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-lg border border-red-200">
                 Pos 1 = TOP 1 • Pos 2 = TOP 2
               </span>
             </div>
 
             {/* 10 Numbered Balls Grid */}
-            <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5 sm:gap-2.5">
+            <div className="grid grid-cols-5 sm:grid-cols-10 gap-1 sm:gap-2.5">
               {safeBalls.map((num, idx) => {
                 const isTop1 = idx === 0;
                 const isTop2 = idx === 1;
@@ -580,7 +597,7 @@ export default function LottoGame({ onNavigate }) {
                 return (
                   <div
                     key={idx}
-                    className={`flex flex-col items-center p-1.5 sm:p-2 rounded-2xl bg-white border-2 ${
+                    className={`flex flex-col items-center p-1 sm:p-2 rounded-xl sm:rounded-2xl bg-white border-2 ${
                       isTop1
                         ? 'border-red-500 shadow-md ring-2 ring-red-400/40 bg-red-50/50'
                         : isTop2
@@ -588,15 +605,15 @@ export default function LottoGame({ onNavigate }) {
                         : 'border-red-100'
                     } transition-all duration-300 hover:-translate-y-0.5`}
                   >
-                    <span className={`text-[9px] sm:text-[10px] font-black mb-1 ${isTop1 ? 'text-red-700' : isTop2 ? 'text-rose-600' : 'text-slate-400'}`}>
+                    <span className={`text-[8px] sm:text-[10px] font-black mb-0.5 sm:mb-1 ${isTop1 ? 'text-red-700' : isTop2 ? 'text-rose-600' : 'text-slate-400'}`}>
                       {idx === 0 ? 'TOP 1' : idx === 1 ? 'TOP 2' : `#${idx + 1}`}
                     </span>
                     <div
-                      className={`w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br ${colorClass} border-2 flex items-center justify-center font-black text-sm sm:text-xl shadow-md sm:shadow-lg transform transition-transform hover:scale-110`}
+                      className={`w-7 h-7 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br ${colorClass} border-2 flex items-center justify-center font-black text-xs sm:text-xl shadow-sm sm:shadow-lg transform transition-transform hover:scale-110`}
                     >
                       {num}
                     </div>
-                    <span className="text-[8px] sm:text-[9px] font-mono font-bold text-slate-500 mt-1">
+                    <span className="text-[7px] sm:text-[9px] font-mono font-bold text-slate-500 mt-0.5 sm:mt-1">
                       {num % 2 === 0 ? 'EVEN' : 'ODD'}
                     </span>
                   </div>
@@ -624,17 +641,52 @@ export default function LottoGame({ onNavigate }) {
           </div>
         </div>
 
-        {/* FEEDBACK ALERTS */}
-        {betSuccessMsg && (
-          <div className="p-4 bg-emerald-50 border-2 border-emerald-300 rounded-2xl text-xs font-bold text-emerald-800 flex items-center space-x-2 shadow-md">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-            <span>{betSuccessMsg}</span>
-          </div>
-        )}
-        {betErrorMsg && (
-          <div className="p-4 bg-rose-50 border-2 border-rose-300 rounded-2xl text-xs font-bold text-rose-800 flex items-center space-x-2 shadow-md">
-            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
-            <span>{betErrorMsg}</span>
+        {/* FLOATING TOAST NOTIFICATION (TOP OF SCREEN) */}
+        {(betSuccessMsg || betErrorMsg) && (
+          <div className="fixed top-4 sm:top-5 left-1/2 z-50 w-[92%] sm:w-auto min-w-[280px] max-w-md animate-toast pointer-events-auto">
+            {betSuccessMsg && (
+              <div className="bg-emerald-950/95 text-white border-2 border-emerald-400/80 backdrop-blur-md rounded-2xl p-3 sm:p-3.5 shadow-2xl shadow-emerald-950/50 flex items-center justify-between gap-3 ring-4 ring-emerald-500/20">
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/40">
+                    <CheckCircle2 className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase font-black text-emerald-400 tracking-wider">Order Successful</p>
+                    <p className="text-xs font-bold text-white truncate">{betSuccessMsg}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBetSuccessMsg('')}
+                  className="p-1.5 text-emerald-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors shrink-0"
+                  title="Dismiss"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {betErrorMsg && (
+              <div className="bg-rose-950/95 text-white border-2 border-rose-400/80 backdrop-blur-md rounded-2xl p-3 sm:p-3.5 shadow-2xl shadow-rose-950/50 flex items-center justify-between gap-3 ring-4 ring-rose-500/20">
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-rose-500/40">
+                    <AlertCircle className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase font-black text-rose-400 tracking-wider">Order Alert</p>
+                    <p className="text-xs font-bold text-white truncate">{betErrorMsg}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBetErrorMsg('')}
+                  className="p-1.5 text-rose-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors shrink-0"
+                  title="Dismiss"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -644,10 +696,10 @@ export default function LottoGame({ onNavigate }) {
           <div className="lg:col-span-2 space-y-5">
             <div className="bg-white border-2 border-red-200 rounded-3xl p-5 sm:p-6 shadow-xl space-y-5">
               {/* Tabs Navigation Header */}
-              <div className="flex flex-wrap items-center justify-center sm:justify-start border-b-2 border-red-100 pb-3 gap-2">
+              <div className="flex items-center border-b-2 border-red-100 pb-3 gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar flex-nowrap w-full">
                 <button
                   onClick={() => setActiveTab('bet')}
-                  className={`px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all ${
+                  className={`flex-1 sm:flex-initial shrink-0 whitespace-nowrap text-center px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all ${
                     activeTab === 'bet'
                       ? 'bg-red-600 text-white shadow-lg shadow-red-500/30'
                       : 'text-slate-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-100'
@@ -657,23 +709,25 @@ export default function LottoGame({ onNavigate }) {
                 </button>
                 <button
                   onClick={() => setActiveTab('history')}
-                  className={`px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all ${
+                  className={`flex-1 sm:flex-initial shrink-0 whitespace-nowrap text-center px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all ${
                     activeTab === 'history'
                       ? 'bg-red-600 text-white shadow-lg shadow-red-500/30'
                       : 'text-slate-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-100'
                   }`}
                 >
-                  History ({historyData?.rounds?.length || 0})
+                  History 
+                  {/* ({historyData?.rounds?.length || 0}) */}
                 </button>
                 <button
                   onClick={() => setActiveTab('my-bets')}
-                  className={`px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all ${
+                  className={`flex-1 sm:flex-initial shrink-0 whitespace-nowrap text-center px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all ${
                     activeTab === 'my-bets'
                       ? 'bg-red-600 text-white shadow-lg shadow-red-500/30'
                       : 'text-slate-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-100'
                   }`}
                 >
-                  My Slips ({myBetsData?.bets?.length || 0})
+                  My Slips 
+                  {/* ({myBetsData?.bets?.length || 0}) */}
                 </button>
               </div>
 
@@ -696,12 +750,12 @@ export default function LottoGame({ onNavigate }) {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="grid grid-cols-4 gap-1.5 sm:gap-2.5">
                       {[
-                        { key: 'ODD', label: 'ODD (1, 3, 5, 7, 9)', odds: odds.TOP1?.ODD || 1.99 },
-                        { key: 'EVEN', label: 'EVEN (2, 4, 6, 8, 10)', odds: odds.TOP1?.EVEN || 1.99 },
-                        { key: 'BIG', label: 'BIG (6 to 10)', odds: odds.TOP1?.BIG || 1.99 },
-                        { key: 'SMALL', label: 'SMALL (1 to 5)', odds: odds.TOP1?.SMALL || 1.99 }
+                        { key: 'ODD', label: '1, 3, 5, 7, 9', odds: odds.TOP1?.ODD || 1.99 },
+                        { key: 'EVEN', label: '2, 4, 6, 8, 10', odds: odds.TOP1?.EVEN || 1.99 },
+                        { key: 'BIG', label: '6 to 10', odds: odds.TOP1?.BIG || 1.99 },
+                        { key: 'SMALL', label: '1 to 5', odds: odds.TOP1?.SMALL || 1.99 }
                       ].map((item) => {
                         const selIdx = selectedOptions.findIndex(
                           (o) => o.market === 'TOP1' && o.selection === item.key
@@ -712,28 +766,21 @@ export default function LottoGame({ onNavigate }) {
                             key={item.key}
                             type="button"
                             onClick={() => handleSelectMarketOption('TOP1', item.key)}
-                            className={`p-3.5 rounded-2xl border-2 text-left transition-all relative ${
+                            className={`p-2 sm:p-3 rounded-2xl border-2 text-center transition-all relative flex flex-col items-center justify-center ${
                               isSelected
-                                ? 'bg-red-600 text-white border-red-700 shadow-lg shadow-red-500/25 ring-2 ring-red-400'
+                                ? 'bg-red-600 text-white border-red-700 shadow-md shadow-red-500/25 ring-2 ring-red-400'
                                 : 'bg-white border-red-100 hover:border-red-300 hover:bg-red-50/50 text-slate-800'
                             } hover:-translate-y-0.5`}
                           >
-                            <div className="flex justify-between items-center">
-                              <span className="font-black text-sm flex items-center gap-1.5">
-                                {item.key}
-                                {/* {isSelected && (
-                                  <span className="px-1.5 py-0.5 bg-white text-red-700 text-[9px] font-black rounded-md shadow-xs">
-                                    Option {selIdx + 1}
-                                  </span>
-                                )} */}
-                              </span>
-                              <span className={`font-mono font-black text-xs px-2 py-0.5 rounded-lg border ${
-                                isSelected ? 'bg-white text-red-700 border-white' : 'bg-red-50 text-red-700 border-red-200'
-                              }`}>
-                                {item.odds}x
-                              </span>
-                            </div>
-                            <p className={`text-[10px] mt-1 font-medium ${isSelected ? 'text-red-100' : 'text-slate-500'}`}>
+                            <span className="font-black text-xs sm:text-sm tracking-tight">
+                              {item.key}
+                            </span>
+                            <span className={`font-mono font-black text-[10px] sm:text-xs px-1.5 py-0.5 mt-0.5 rounded-md border ${
+                              isSelected ? 'bg-white text-red-700 border-white' : 'bg-red-50 text-red-700 border-red-200'
+                            }`}>
+                              {item.odds}x
+                            </span>
+                            <p className={`text-[9px] sm:text-[10px] mt-1 font-medium truncate w-full ${isSelected ? 'text-red-100' : 'text-slate-500'}`}>
                               {item.label}
                             </p>
                           </button>
@@ -758,12 +805,12 @@ export default function LottoGame({ onNavigate }) {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="grid grid-cols-4 gap-1.5 sm:gap-2.5">
                       {[
-                        { key: 'BIG', label: 'BIG: Sum > 11 (12–19)', odds: odds['TOP1+2']?.BIG || 2.127 },
-                        { key: 'SMALL', label: 'SMALL: Sum <= 11 (3–11)', odds: odds['TOP1+2']?.SMALL || 1.893 },
-                        { key: 'ODD', label: 'ODD Sum Parity', odds: odds['TOP1+2']?.ODD || 1.99 },
-                        { key: 'EVEN', label: 'EVEN Sum Parity', odds: odds['TOP1+2']?.EVEN || 1.99 }
+                        { key: 'BIG', label: 'Sum > 11', odds: odds['TOP1+2']?.BIG || 2.127 },
+                        { key: 'SMALL', label: 'Sum <= 11', odds: odds['TOP1+2']?.SMALL || 1.893 },
+                        { key: 'ODD', label: 'Odd Sum', odds: odds['TOP1+2']?.ODD || 1.99 },
+                        { key: 'EVEN', label: 'Even Sum', odds: odds['TOP1+2']?.EVEN || 1.99 }
                       ].map((item) => {
                         const selIdx = selectedOptions.findIndex(
                           (o) => o.market === 'TOP1+2' && o.selection === item.key
@@ -774,28 +821,21 @@ export default function LottoGame({ onNavigate }) {
                             key={item.key}
                             type="button"
                             onClick={() => handleSelectMarketOption('TOP1+2', item.key)}
-                            className={`p-3.5 rounded-2xl border-2 text-left transition-all relative ${
+                            className={`p-2 sm:p-3 rounded-2xl border-2 text-center transition-all relative flex flex-col items-center justify-center ${
                               isSelected
-                                ? 'bg-red-600 text-white border-red-700 shadow-lg shadow-red-500/25 ring-2 ring-red-400'
+                                ? 'bg-red-600 text-white border-red-700 shadow-md shadow-red-500/25 ring-2 ring-red-400'
                                 : 'bg-white border-red-100 hover:border-red-300 hover:bg-red-50/50 text-slate-800'
                             } hover:-translate-y-0.5`}
                           >
-                            <div className="flex justify-between items-center">
-                              <span className="font-black text-sm flex items-center gap-1.5">
-                                {item.key}
-                                    {/* {isSelected && (
-                                      <span className="px-1.5 py-0.5 bg-white text-red-700 text-[9px] font-black rounded-md shadow-xs">
-                                        Option {selIdx + 1}
-                                      </span>
-                                    )} */}
-                              </span>
-                              <span className={`font-mono font-black text-xs px-2 py-0.5 rounded-lg border ${
-                                isSelected ? 'bg-white text-red-700 border-white' : 'bg-red-50 text-red-700 border-red-200'
-                              }`}>
-                                {item.odds}x
-                              </span>
-                            </div>
-                            <p className={`text-[10px] mt-1 font-medium ${isSelected ? 'text-red-100' : 'text-slate-500'}`}>
+                            <span className="font-black text-xs sm:text-sm tracking-tight">
+                              {item.key}
+                            </span>
+                            <span className={`font-mono font-black text-[10px] sm:text-xs px-1.5 py-0.5 mt-0.5 rounded-md border ${
+                              isSelected ? 'bg-white text-red-700 border-white' : 'bg-red-50 text-red-700 border-red-200'
+                            }`}>
+                              {item.odds}x
+                            </span>
+                            <p className={`text-[9px] sm:text-[10px] mt-1 font-medium truncate w-full ${isSelected ? 'text-red-100' : 'text-slate-500'}`}>
                               {item.label}
                             </p>
                           </button>
@@ -820,12 +860,12 @@ export default function LottoGame({ onNavigate }) {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="grid grid-cols-4 gap-1.5 sm:gap-2.5">
                       {[
-                        { key: 'ODD', label: 'ODD (1, 3, 5, 7, 9)', odds: odds.TOP2?.ODD || 1.99 },
-                        { key: 'EVEN', label: 'EVEN (2, 4, 6, 8, 10)', odds: odds.TOP2?.EVEN || 1.99 },
-                        { key: 'BIG', label: 'BIG (6 to 10)', odds: odds.TOP2?.BIG || 1.99 },
-                        { key: 'SMALL', label: 'SMALL (1 to 5)', odds: odds.TOP2?.SMALL || 1.99 }
+                        { key: 'ODD', label: '1, 3, 5, 7, 9', odds: odds.TOP2?.ODD || 1.99 },
+                        { key: 'EVEN', label: '2, 4, 6, 8, 10', odds: odds.TOP2?.EVEN || 1.99 },
+                        { key: 'BIG', label: '6 to 10', odds: odds.TOP2?.BIG || 1.99 },
+                        { key: 'SMALL', label: '1 to 5', odds: odds.TOP2?.SMALL || 1.99 }
                       ].map((item) => {
                         const selIdx = selectedOptions.findIndex(
                           (o) => o.market === 'TOP2' && o.selection === item.key
@@ -836,28 +876,21 @@ export default function LottoGame({ onNavigate }) {
                             key={item.key}
                             type="button"
                             onClick={() => handleSelectMarketOption('TOP2', item.key)}
-                            className={`p-3.5 rounded-2xl border-2 text-left transition-all relative ${
+                            className={`p-2 sm:p-3 rounded-2xl border-2 text-center transition-all relative flex flex-col items-center justify-center ${
                               isSelected
-                                ? 'bg-red-600 text-white border-red-700 shadow-lg shadow-red-500/25 ring-2 ring-red-400'
+                                ? 'bg-red-600 text-white border-red-700 shadow-md shadow-red-500/25 ring-2 ring-red-400'
                                 : 'bg-white border-red-100 hover:border-red-300 hover:bg-red-50/50 text-slate-800'
                             } hover:-translate-y-0.5`}
                           >
-                            <div className="flex justify-between items-center">
-                              <span className="font-black text-sm flex items-center gap-1.5">
-                                {item.key}
-                                    {/* {isSelected && (
-                                      <span className="px-1.5 py-0.5 bg-white text-red-700 text-[9px] font-black rounded-md shadow-xs">
-                                        Option {selIdx + 1}
-                                      </span>
-                                    )} */}
-                              </span>
-                              <span className={`font-mono font-black text-xs px-2 py-0.5 rounded-lg border ${
-                                isSelected ? 'bg-white text-red-700 border-white' : 'bg-red-50 text-red-700 border-red-200'
-                              }`}>
-                                {item.odds}x
-                              </span>
-                            </div>
-                            <p className={`text-[10px] mt-1 font-medium ${isSelected ? 'text-red-100' : 'text-slate-500'}`}>
+                            <span className="font-black text-xs sm:text-sm tracking-tight">
+                              {item.key}
+                            </span>
+                            <span className={`font-mono font-black text-[10px] sm:text-xs px-1.5 py-0.5 mt-0.5 rounded-md border ${
+                              isSelected ? 'bg-white text-red-700 border-white' : 'bg-red-50 text-red-700 border-red-200'
+                            }`}>
+                              {item.odds}x
+                            </span>
+                            <p className={`text-[9px] sm:text-[10px] mt-1 font-medium truncate w-full ${isSelected ? 'text-red-100' : 'text-slate-500'}`}>
                               {item.label}
                             </p>
                           </button>
@@ -866,122 +899,114 @@ export default function LottoGame({ onNavigate }) {
                     </div>
                   </div>
 
-                  {/* STAKE CONFIGURATION & CHIPS */}
-                  <div className="bg-red-50/40 border-2 border-red-100 rounded-3xl p-4 sm:p-5 space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">
-                          Select Stake Amount (Per Option)
-                        </h4>
-                        <p className="text-[11px] text-slate-500">Pick quick chips or enter custom amount ($)</p>
-                      </div>
+                  {/* DIRECT STAKE INPUT (REPLACED AMOUNT BUTTONS) */}
+                  <div className="bg-gradient-to-br from-red-50/60 via-white to-red-50/40 border-2 border-red-200 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                        <Coins className="w-4 h-4 text-red-600 shrink-0" />
+                        <span>Enter Amount (Per Option)</span>
+                      </h4>
 
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs font-bold text-slate-600">Custom ($):</span>
-                        <input
-                          type="number"
-                          placeholder="e.g. 250"
-                          value={customStake}
-                          onChange={(e) => setCustomStake(e.target.value)}
-                          className="w-28 px-3 py-1.5 rounded-xl border-2 border-red-200 font-mono text-xs font-black text-red-700 focus:outline-none focus:border-red-500 bg-white"
-                        />
+                      <div className="flex items-center space-x-1.5 bg-red-50/80 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl border border-red-200 shrink-0">
+                        <span className="text-[10px] sm:text-[11px] text-slate-600 font-semibold">Available:</span>
+                        <span className="font-mono font-black text-xs text-red-700">${balance.toLocaleString()}</span>
                       </div>
                     </div>
 
-                    {/* Chips Strip */}
-                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                      {QUICK_STAKES.map((amt) => {
-                        const isSelected = !customStake && stake === amt;
-                        return (
-                          <button
-                            key={amt}
-                            type="button"
-                            onClick={() => {
-                              casinoAudio.coinClick();
-                              setStake(amt);
-                              setCustomStake('');
-                            }}
-                            className={`py-2 px-3 rounded-2xl text-xs font-mono font-black border-2 transition-all ${
-                              isSelected
-                                ? 'bg-red-600 text-white border-red-700 shadow-md ring-2 ring-red-400'
-                                : 'bg-white text-slate-700 hover:bg-red-50 border-red-100'
-                            }`}
-                          >
-                            ${amt.toLocaleString()}
-                          </button>
-                        );
-                      })}
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                        <span className="text-slate-400 font-mono font-black text-base">$</span>
+                      </div>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        placeholder="Enter bet amount (e.g. 50, 100, 500)"
+                        value={stake}
+                        onChange={(e) => {
+                          setStake(e.target.value);
+                          setBetErrorMsg('');
+                        }}
+                        className="w-full pl-8 pr-20 py-3 bg-white border-2 border-red-200 rounded-2xl font-mono text-base font-black text-red-700 placeholder:text-slate-400 placeholder:font-normal placeholder:text-xs focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-400/20 shadow-inner transition-all"
+                      />
+                      {stake && (
+                        <button
+                          type="button"
+                          onClick={() => setStake('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[11px] font-bold text-slate-400 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-100"
+                        >
+                          Clear
+                        </button>
+                      )}
                     </div>
-
-                    {/* ORDER ACTION BAR */}
-                    <div className="p-4 bg-white border-2 border-red-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
                       <div className="space-y-1.5">
-                        <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                          <span className="font-semibold text-slate-500">
-                            Selected Options ({selectedOptions.length}/2):
-                          </span>
-                          {selectedOptions.length === 0 ? (
-                            <span className="text-slate-400 italic">No option selected (click 1 or 2 options)</span>
-                          ) : (
-                            selectedOptions.map((opt, idx) => (
-                              <span
-                                key={idx}
-                                className="inline-flex items-center gap-1 font-black text-red-700 bg-red-50 px-2 py-0.5 rounded-lg border border-red-200"
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                        <span className="font-semibold text-slate-500">
+                          Selected Options ({selectedOptions.length}/2):
+                        </span>
+                        {selectedOptions.length === 0 ? (
+                          <span className="text-slate-400 italic">No option selected (click 1 or 2 options)</span>
+                        ) : (
+                          selectedOptions.map((opt, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1 font-black text-red-700 bg-red-50 px-2 py-0.5 rounded-lg border border-red-200"
+                            >
+                              <span>#{idx + 1}: {opt.market} • {opt.selection} ({odds[opt.market]?.[opt.selection] || 1.99}x)</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveOption(idx);
+                                }}
+                                className="text-red-500 hover:text-red-800 font-bold ml-0.5"
+                                title="Remove option"
                               >
-                                <span>#{idx + 1}: {opt.market} • {opt.selection} ({odds[opt.market]?.[opt.selection] || 1.99}x)</span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRemoveOption(idx);
-                                  }}
-                                  className="text-red-500 hover:text-red-800 font-bold ml-0.5"
-                                  title="Remove option"
-                                >
-                                  &times;
-                                </button>
-                              </span>
-                            ))
-                          )}
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2.5 text-xs">
-                          <span className="text-slate-600">
-                            Stake/Bet: <b className="text-slate-900 font-mono font-black">${activeStake.toLocaleString()}</b>
-                          </span>
-                          <span className="text-slate-300">|</span>
-                          <span className="text-slate-600">
-                            Total Wager: <b className="text-red-700 font-mono font-black">${totalRequiredStake.toLocaleString()}</b>
-                          </span>
-                          <span className="text-slate-300">|</span>
-                          <span className="text-slate-600">
-                            Gross Return: <b className="text-emerald-700 font-mono font-black">${totalGrossPayout}</b>
-                          </span>
-                          <span className="text-slate-600">
-                            Profit: <b className="text-red-700 font-mono font-black">+${totalNetProfit}</b>
-                          </span>
-                        </div>
+                                &times;
+                              </button>
+                            </span>
+                          ))
+                        )}
                       </div>
 
-                      {/* Direct Order Placement Button */}
-                      <button
-                        type="button"
-                        onClick={handlePlaceBet}
-                        disabled={!isBettingOpen || isSubmittingBet || selectedOptions.length === 0}
-                        className="px-8 py-3.5 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-xl shadow-red-600/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center space-x-2 shrink-0"
-                      >
-                        <Flame className="w-4 h-4 text-amber-300" />
-                        <span>
-                          {!isBettingOpen
-                            ? `Drawing Results (${displayRevealLeft}s)`
-                            : selectedOptions.length === 0
-                            ? 'Select Options (Max 2)'
-                            : selectedOptions.length === 1
-                            ? `Place 1 Bet ($${totalRequiredStake.toLocaleString()})`
-                            : `Place 2 Bets ($${totalRequiredStake.toLocaleString()})`}
+                      <div className="flex flex-wrap items-center gap-2.5 text-xs">
+                        <span className="text-slate-600">
+                          Stake/Bet: <b className="text-slate-900 font-mono font-black">${activeStake.toLocaleString()}</b>
                         </span>
-                      </button>
+                        <span className="text-slate-300">|</span>
+                        <span className="text-slate-600">
+                          Total Wager: <b className="text-red-700 font-mono font-black">${totalRequiredStake.toLocaleString()}</b>
+                        </span>
+                        <span className="text-slate-300">|</span>
+                        <span className="text-slate-600">
+                          Gross Return: <b className="text-emerald-700 font-mono font-black">${totalGrossPayout}</b>
+                        </span>
+                        <span className="text-slate-600">
+                          Profit: <b className="text-red-700 font-mono font-black">+${totalNetProfit}</b>
+                        </span>
+                      </div>
                     </div>
+
+                    {/* Direct Order Placement Button */}
+                    <button
+                      type="button"
+                      onClick={handlePlaceBet}
+                      disabled={!isBettingOpen || isSubmittingBet || selectedOptions.length === 0 || activeStake <= 0}
+                      className="w-full sm:w-auto px-5 sm:px-8 py-3.5 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-xl shadow-red-600/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center space-x-2 shrink-0"
+                    >
+                      <Flame className="w-4 h-4 text-amber-300" />
+                      <span>
+                        {!isBettingOpen
+                          ? `Drawing Results (${displayRevealLeft}s)`
+                          : selectedOptions.length === 0
+                          ? 'Select Options (Max 2)'
+                          : activeStake <= 0
+                          ? 'Enter Bet Amount'
+                          : selectedOptions.length === 1
+                          ? `Place 1 Bet ($${totalRequiredStake.toLocaleString()})`
+                          : `Place 2 Bets ($${totalRequiredStake.toLocaleString()})`}
+                      </span>
+                    </button>
                   </div>
                 </div>
               )}
@@ -1004,7 +1029,7 @@ export default function LottoGame({ onNavigate }) {
                   </div>
 
                   <div className="overflow-x-auto border-2 border-red-100 rounded-2xl">
-                    <table className="w-full text-xs text-left">
+                    <table className="w-full min-w-[580px] text-xs text-left">
                       <thead className="bg-red-50 text-red-800 font-black uppercase text-[10px] tracking-wider border-b border-red-200">
                         <tr>
                           <th className="py-3 px-3">Round ID</th>

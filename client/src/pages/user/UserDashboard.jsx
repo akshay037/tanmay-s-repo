@@ -3,12 +3,13 @@ import { useGetDashboardReportsQuery, useGetMeQuery } from '../../store/apiSlice
 import { Coins, Shield, History, ArrowDownRight, RefreshCw, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 import Badge from '../../components/Badge';
 import NoPointsNotificationModal from '../../components/NoPointsNotificationModal';
-import { buildTelegramWithdrawUrl } from '../../utils/telegram';
+import WithdrawModal from '../../components/WithdrawModal';
 
 export default function UserDashboard({ onNavigate }) {
   const { data: meData } = useGetMeQuery();
   const { data, isLoading, refetch } = useGetDashboardReportsQuery(undefined, { pollingInterval: 15000 });
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -67,16 +68,15 @@ export default function UserDashboard({ onNavigate }) {
                 <span>Deposit</span>
               </button>
 
-              <a
-                href={buildTelegramWithdrawUrl({ meData, currentBalance: summary.balance })}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white rounded-xl text-xs font-bold shadow-md shadow-sky-500/20 border border-sky-400/30 transition-all hover:scale-105"
+              <button
+                type="button"
+                onClick={() => setIsWithdrawModalOpen(true)}
+                className="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 text-white rounded-xl text-xs font-bold shadow-md shadow-red-500/20 border border-red-400/30 transition-all hover:scale-105"
                 title="Withdraw Points"
               >
                 <ArrowUpFromLine className="w-3.5 h-3.5 shrink-0" />
                 <span>Withdraw</span>
-              </a>
+              </button>
             </div>
           </div>
 
@@ -103,7 +103,7 @@ export default function UserDashboard({ onNavigate }) {
             <span>Recent Point Allocations Received</span>
           </h3>
           <button
-            onClick={() => onNavigate('my-transactions')}
+            onClick={() => onNavigate('balance-history')}
             className="text-xs text-indigo-400 hover:text-indigo-300 font-medium"
           >
             View All History &rarr;
@@ -140,6 +140,13 @@ export default function UserDashboard({ onNavigate }) {
         onClose={() => setIsDepositModalOpen(false)}
         currentBalance={summary.balance || 0}
         intent="deposit"
+      />
+
+      <WithdrawModal
+        isOpen={isWithdrawModalOpen}
+        onClose={() => setIsWithdrawModalOpen(false)}
+        currentBalance={summary.balance || 0}
+        onOpenDeposit={() => setIsDepositModalOpen(true)}
       />
     </div>
   );

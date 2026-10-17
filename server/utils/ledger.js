@@ -93,19 +93,34 @@ function transferPoints({
     const toBalanceBefore = toAccount.balance;
     const toBalanceAfter = toBalanceBefore + amount;
 
-    // Update Sender Account
-    db.prepare(`
-      UPDATE point_accounts
-      SET balance = ?, total_distributed = total_distributed + ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).run(fromBalanceAfter, amount, fromAccount.id);
+    // Update Accounts
+    if (transactionType === 'USER_WITHDRAWAL') {
+      // User returning points upon withdrawal
+      db.prepare(`
+        UPDATE point_accounts
+        SET balance = ?, total_distributed = total_distributed + ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(fromBalanceAfter, amount, fromAccount.id);
 
-    // Update Recipient Account
-    db.prepare(`
-      UPDATE point_accounts
-      SET balance = ?, total_received = total_received + ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).run(toBalanceAfter, amount, toAccount.id);
+      db.prepare(`
+        UPDATE point_accounts
+        SET balance = ?, total_distributed = CASE WHEN total_distributed >= ? THEN total_distributed - ? ELSE 0 END, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(toBalanceAfter, amount, amount, toAccount.id);
+    } else {
+      // Standard Allocation / Distribution
+      db.prepare(`
+        UPDATE point_accounts
+        SET balance = ?, total_distributed = total_distributed + ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(fromBalanceAfter, amount, fromAccount.id);
+
+      db.prepare(`
+        UPDATE point_accounts
+        SET balance = ?, total_received = total_received + ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(toBalanceAfter, amount, toAccount.id);
+    }
 
     // Create Transaction Record
     const txnId = generateTxnId();
@@ -144,13 +159,28 @@ function transferPoints({
       newValue: { fromBalance: fromBalanceAfter, toBalance: toBalanceAfter, amount, txnId }
     });
 
-    // Notify Recipient
-    sendNotification(
-      toOwnerId,
-      'Points Received',
-      `You received ${amount.toLocaleString()} points from ${senderUser.username} (${fromOwnerType}). Transaction ID: ${txnId}`,
-      'SUCCESS'
-    );
+    // Notify Parties
+    if (transactionType === 'USER_WITHDRAWAL') {
+      sendNotification(
+        fromOwnerId,
+        'Withdrawal Processed',
+        `Your withdrawal of ${amount.toLocaleString()} points was completed by @${recipientUser.username}. Txn ID: ${txnId}`,
+        'INFO'
+      );
+      sendNotification(
+        toOwnerId,
+        'Withdrawal Completed',
+        `Successfully processed withdrawal of ${amount.toLocaleString()} points from @${senderUser.username}. Txn ID: ${txnId}`,
+        'SUCCESS'
+      );
+    } else {
+      sendNotification(
+        toOwnerId,
+        'Points Received',
+        `You received ${amount.toLocaleString()} points from ${senderUser.username} (${fromOwnerType}). Transaction ID: ${txnId}`,
+        'SUCCESS'
+      );
+    }
 
     return transactionRecord;
   });

@@ -97,19 +97,34 @@ export function buildTelegramDepositUrl(options = {}) {
 
 export function buildTelegramWithdrawUrl(options = {}) {
   const { userId, username, fullName, balance, adminName } = getPlayerDetails(options);
+  const requestedAmount = parseInt(options.requestedAmount, 10);
+  const hasAmount = Number.isInteger(requestedAmount) && requestedAmount > 0;
+  const numBalance = Number(balance) || 0;
+  const remaining = Math.max(0, numBalance - (hasAmount ? requestedAmount : 0));
+  const requestCode = options.requestCode;
+  const userNote = options.userNote || options.note;
 
   const message = [
     '📤 WITHDRAWAL REQUEST',
     '━━━━━━━━━━━━━━━━━━━━━',
+    requestCode ? `🔖 Request Code: ${requestCode}` : null,
+    requestCode ? '⚡ Status: Pending Admin Approval on Portal' : null,
     `🆔 User ID: ${userId}`,
     `👤 Username: @${username}`,
     `🏷️ Name: ${fullName}`,
-    `💰 Current Balance: $${Number(balance).toLocaleString()}`,
+    `💰 Current Balance: $${numBalance.toLocaleString()}`,
+    hasAmount ? `💵 Requested Withdrawal: $${requestedAmount.toLocaleString()}` : null,
+    hasAmount ? `💼 Balance After Payout: $${remaining.toLocaleString()}` : null,
+    userNote ? `📝 Payout Details: ${userNote}` : null,
     `🛡️ Assigned Admin: @${adminName}`,
     '━━━━━━━━━━━━━━━━━━━━━',
-    '💬 Request: Hello Admin, I would like to withdraw points from my account.',
+    hasAmount
+      ? requestCode
+        ? `💬 Request: Hello Admin, I have submitted a withdrawal request (${requestCode}) for $${requestedAmount.toLocaleString()} points on the portal. Please approve and provide payout.`
+        : `💬 Request: Hello Admin, I would like to withdraw $${requestedAmount.toLocaleString()} points from my account. Please provide payout confirmation.`
+      : '💬 Request: Hello Admin, I would like to withdraw points from my account.',
     `⏱️ Time: ${new Date().toLocaleString()}`
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 
   return buildTelegramUrl(message);
 }

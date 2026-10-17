@@ -104,34 +104,34 @@ export default function RouletteGame({ onNavigate }) {
   return (
     <div className="max-w-4xl mx-auto space-y-6 font-sans">
       {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white border-2 border-red-200 p-5 rounded-3xl shadow-md text-center sm:text-left">
-        <div className="flex flex-col sm:flex-row items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 bg-white border-2 border-red-200 p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl shadow-md text-center sm:text-left w-full max-w-full">
+        <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
           <button
             onClick={() => onNavigate('casino')}
-            className="p-2.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded-2xl transition-colors"
+            className="p-2 sm:p-2.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded-xl sm:rounded-2xl transition-colors shrink-0"
             title="Back to Casino"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
           <div>
-            <h1 className="text-xl font-black text-red-800 tracking-wide flex flex-wrap items-center justify-center sm:justify-start gap-2">
+            <h1 className="text-base sm:text-xl font-black text-red-800 tracking-wide flex flex-wrap items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
               <span>EUROPEAN VEGAS ROULETTE</span>
-              <span className="px-2 py-0.5 text-[10px] uppercase font-black bg-red-600 text-white rounded-full">
+              <span className="px-2 py-0.5 text-[9px] sm:text-[10px] uppercase font-black bg-red-600 text-white rounded-full">
                 36x Number Win
               </span>
             </h1>
-            <p className="text-xs text-slate-500 font-semibold">Place chips on Colors, Parities, Dozens, or Straight Numbers!</p>
+            <p className="text-[11px] sm:text-xs text-slate-500 font-semibold">Place chips on Colors, Parities, Dozens, or Straight Numbers!</p>
           </div>
         </div>
 
         {/* Recent History Trail */}
-        <div className="flex items-center justify-center sm:justify-end space-x-2">
-          <span className="text-[11px] font-bold text-slate-500">History:</span>
-          <div className="flex items-center space-x-1.5">
+        <div className="flex items-center justify-center sm:justify-end space-x-1.5 sm:space-x-2">
+          <span className="text-[10px] sm:text-[11px] font-bold text-slate-500">History:</span>
+          <div className="flex items-center space-x-1 sm:space-x-1.5">
             {recentHistory.map((num, i) => (
               <span
                 key={i}
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black font-mono shadow ${getNumberColor(num)}`}
+                className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] font-black font-mono shadow ${getNumberColor(num)}`}
               >
                 {num}
               </span>
@@ -141,33 +141,33 @@ export default function RouletteGame({ onNavigate }) {
       </div>
 
       {/* Main Wheel & Result Display */}
-      <div className="bg-gradient-to-b from-red-50 via-white to-red-50 border-2 border-red-200 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
-        <div className="flex flex-col items-center justify-center py-6 text-center">
+      <div className="bg-gradient-to-b from-red-50 via-white to-red-50 border-2 border-red-200 rounded-2xl sm:rounded-3xl p-3.5 sm:p-8 shadow-xl relative overflow-hidden w-full max-w-full">
+        <div className="flex flex-col items-center justify-center py-4 sm:py-6 text-center">
           {/* Wheel Graphic */}
           <div
-            className={`w-36 h-36 sm:w-44 sm:h-44 rounded-full border-8 border-red-500 flex items-center justify-center shadow-xl bg-white relative ${
+            className={`w-32 h-32 sm:w-44 sm:h-44 rounded-full border-6 sm:border-8 border-red-500 flex items-center justify-center shadow-xl bg-white relative ${
               isSpinning ? 'animate-spin' : ''
             }`}
           >
-            <div className="w-20 h-20 rounded-full bg-red-50 border-2 border-red-200 flex flex-col items-center justify-center text-center">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-red-50 border-2 border-red-200 flex flex-col items-center justify-center text-center">
               {winningNumber !== null ? (
                 <>
-                  <span className="text-2xl font-black font-mono text-red-700">{winningNumber}</span>
-                  <span className={`text-[9px] uppercase font-black ${winningColor === 'RED' ? 'text-red-600' : winningColor === 'BLACK' ? 'text-slate-900' : 'text-emerald-700'}`}>
+                  <span className="text-xl sm:text-2xl font-black font-mono text-red-700">{winningNumber}</span>
+                  <span className={`text-[8px] sm:text-[9px] uppercase font-black ${winningColor === 'RED' ? 'text-red-600' : winningColor === 'BLACK' ? 'text-slate-900' : 'text-emerald-700'}`}>
                     {winningColor}
                   </span>
                 </>
               ) : (
-                <span className="text-xs font-black text-slate-400 uppercase">Ready</span>
+                <span className="text-[11px] sm:text-xs font-black text-slate-400 uppercase">Ready</span>
               )}
             </div>
           </div>
 
           {/* Status Banner */}
-          <div className="min-h-[40px] mt-5 flex items-center justify-center">
+          <div className="min-h-[36px] sm:min-h-[40px] mt-4 sm:mt-5 flex items-center justify-center">
             {statusMessage && (
               <div
-                className={`px-5 py-2 rounded-2xl text-xs sm:text-sm font-black border-2 ${
+                className={`px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl text-[11px] sm:text-sm font-black border-2 ${
                   lastWin
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-md'
                     : 'bg-red-50 text-red-800 border-red-200'
@@ -180,9 +180,9 @@ export default function RouletteGame({ onNavigate }) {
         </div>
 
         {/* Roulette Betting Table */}
-        <div className="space-y-4 bg-white border-2 border-red-100 p-5 rounded-3xl shadow-md">
+        <div className="space-y-3 sm:space-y-4 bg-white border-2 border-red-100 p-3 sm:p-5 rounded-2xl sm:rounded-3xl shadow-md w-full max-w-full overflow-hidden">
           {/* Outside Bets */}
-          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-6 gap-1.5 sm:gap-2">
             {[
               { type: 'RED', label: 'RED (2x)', bg: 'bg-red-600 hover:bg-red-700 text-white' },
               { type: 'BLACK', label: 'BLACK (2x)', bg: 'bg-slate-900 hover:bg-slate-800 text-white' },
@@ -195,9 +195,9 @@ export default function RouletteGame({ onNavigate }) {
                 key={b.type}
                 onClick={() => selectBet(b.type)}
                 disabled={isSpinning}
-                className={`py-3 px-2 rounded-2xl text-xs font-black transition-all shadow ${b.bg} ${
+                className={`py-2 sm:py-3 px-1.5 sm:px-2 rounded-xl sm:rounded-2xl text-[11px] sm:text-xs font-black transition-all shadow ${b.bg} ${
                   selectedBetType === b.type
-                    ? 'ring-4 ring-amber-400 scale-105'
+                    ? 'ring-3 sm:ring-4 ring-amber-400 scale-[1.02] sm:scale-105'
                     : 'opacity-90 hover:opacity-100'
                 }`}
               >
@@ -207,7 +207,7 @@ export default function RouletteGame({ onNavigate }) {
           </div>
 
           {/* Dozen Bets */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 sm:gap-2">
             {[
               { type: 'DOZEN_1', label: '1st Dozen (1-12) • 3x' },
               { type: 'DOZEN_2', label: '2nd Dozen (13-24) • 3x' },
@@ -217,7 +217,7 @@ export default function RouletteGame({ onNavigate }) {
                 key={d.type}
                 onClick={() => selectBet(d.type)}
                 disabled={isSpinning}
-                className={`py-2 px-3 bg-red-50 hover:bg-red-100 text-xs font-black text-red-800 rounded-2xl border-2 border-red-200 transition-all ${
+                className={`py-2 px-3 bg-red-50 hover:bg-red-100 text-[11px] sm:text-xs font-black text-red-800 rounded-xl sm:rounded-2xl border-2 border-red-200 transition-all ${
                   selectedBetType === d.type ? 'ring-2 ring-red-600 bg-red-100' : ''
                 }`}
               >
@@ -228,15 +228,15 @@ export default function RouletteGame({ onNavigate }) {
 
           {/* Numbers Grid (0 to 36) */}
           <div>
-            <span className="block text-[11px] font-bold text-slate-500 mb-2">
+            <span className="block text-[10px] sm:text-[11px] font-bold text-slate-500 mb-1.5">
               Straight Number Bet (36x Multiplier) - Click to Select:
             </span>
-            <div className="grid grid-cols-6 sm:grid-cols-12 gap-1.5 font-mono text-xs font-black">
+            <div className="grid grid-cols-6 sm:grid-cols-12 gap-1 sm:gap-1.5 font-mono text-[11px] sm:text-xs font-black">
               <button
                 onClick={() => selectBet('NUMBER', 0)}
                 disabled={isSpinning}
-                className={`py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-all ${
-                  selectedBetType === 'NUMBER' && chosenNumber === 0 ? 'ring-4 ring-amber-400' : ''
+                className={`py-1.5 sm:py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-all ${
+                  selectedBetType === 'NUMBER' && chosenNumber === 0 ? 'ring-3 sm:ring-4 ring-amber-400' : ''
                 }`}
               >
                 0
@@ -249,9 +249,9 @@ export default function RouletteGame({ onNavigate }) {
                     key={num}
                     onClick={() => selectBet('NUMBER', num)}
                     disabled={isSpinning}
-                    className={`py-2 rounded-xl text-white transition-all ${
+                    className={`py-1.5 sm:py-2 rounded-xl text-white transition-all ${
                       isRed ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-900 hover:bg-slate-800'
-                    } ${isSelected ? 'ring-4 ring-amber-400 scale-105' : ''}`}
+                    } ${isSelected ? 'ring-3 sm:ring-4 ring-amber-400 scale-[1.03] sm:scale-105' : ''}`}
                   >
                     {num}
                   </button>
@@ -262,7 +262,7 @@ export default function RouletteGame({ onNavigate }) {
         </div>
 
         {/* Betting Controls & Action Button */}
-        <div className="mt-6 bg-white border-2 border-red-200 p-5 rounded-3xl space-y-4 text-slate-800 shadow-lg">
+        <div className="mt-4 sm:mt-6 bg-white border-2 border-red-200 p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl space-y-3 sm:space-y-4 text-slate-800 shadow-lg">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex-1">
               <label className="block text-xs font-bold text-slate-600 mb-1 flex items-center justify-between">
@@ -307,7 +307,7 @@ export default function RouletteGame({ onNavigate }) {
           <button
             onClick={handleSpin}
             disabled={isSpinning}
-            className={`w-full py-4 text-center rounded-2xl font-black text-lg uppercase tracking-widest transition-all shadow-xl flex items-center justify-center space-x-2 ${
+            className={`w-full py-3 sm:py-4 px-2 text-center rounded-2xl font-black text-xs sm:text-base md:text-lg uppercase tracking-wider transition-all shadow-xl flex items-center justify-center space-x-2 ${
               isSpinning
                 ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
                 : balance <= 0

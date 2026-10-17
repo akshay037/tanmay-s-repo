@@ -111,7 +111,8 @@ export default function TransactionHistory() {
             <option value="">All Transaction Types</option>
             <option value="SUPER_ADMIN_MINT">Super Admin Mint</option>
             <option value="ADMIN_ALLOCATION">Admin Allocation</option>
-            <option value="USER_ALLOCATION">User Allocation</option>
+            <option value="USER_ALLOCATION">User Allocation (Deposit)</option>
+            <option value="USER_WITHDRAWAL">User Withdrawal</option>
             <option value="ADMIN_REVERSAL">Admin Reversal</option>
             <option value="USER_REVERSAL">User Reversal</option>
           </select>

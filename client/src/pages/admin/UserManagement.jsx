@@ -10,7 +10,7 @@ import Modal from '../../components/Modal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import Badge from '../../components/Badge';
 import ExportButtons from '../../components/ExportButtons';
-import { Users, Plus, Search, Edit2, Key, UserCheck, UserX, Coins, AlertCircle } from 'lucide-react';
+import { Users, Plus, Search, Edit2, Key, UserCheck, UserX, Coins, ArrowUpFromLine, AlertCircle } from 'lucide-react';
 
 export default function UserManagement({ onSelectUserForDistribution }) {
   const { data: users = [], isLoading } = useGetUsersQuery();
@@ -225,9 +225,16 @@ export default function UserManagement({ onSelectUserForDistribution }) {
                         <button
                           onClick={() => onSelectUserForDistribution && onSelectUserForDistribution(usr)}
                           className="p-1.5 text-indigo-400 hover:bg-indigo-500/20 rounded-lg transition-colors"
-                          title="Distribute Points"
+                          title="Distribute / Deposit Points"
                         >
                           <Coins className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => onSelectUserForDistribution && onSelectUserForDistribution({ ...usr, action: 'WITHDRAW' })}
+                          className="p-1.5 text-rose-400 hover:bg-rose-500/20 rounded-lg transition-colors"
+                          title="Withdraw / Deduct Points"
+                        >
+                          <ArrowUpFromLine className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => openEdit(usr)}

@@ -68,34 +68,34 @@ export default function DiceGame({ onNavigate }) {
   return (
     <div className="max-w-4xl mx-auto space-y-6 font-sans">
       {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white border-2 border-red-200 p-5 rounded-3xl shadow-md text-center sm:text-left">
-        <div className="flex flex-col sm:flex-row items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 bg-white border-2 border-red-200 p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl shadow-md text-center sm:text-left w-full max-w-full">
+        <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
           <button
             onClick={() => onNavigate('casino')}
-            className="p-2.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded-2xl transition-colors"
+            className="p-2 sm:p-2.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded-xl sm:rounded-2xl transition-colors shrink-0"
             title="Back to Casino"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
           <div>
-            <h1 className="text-xl font-black text-red-800 tracking-wide flex flex-wrap items-center justify-center sm:justify-start gap-2">
+            <h1 className="text-base sm:text-xl font-black text-red-800 tracking-wide flex flex-wrap items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
               <span>LUCKY CRYPTO DICE</span>
-              <span className="px-2 py-0.5 text-[10px] uppercase font-black bg-red-600 text-white rounded-full">
+              <span className="px-2 py-0.5 text-[9px] sm:text-[10px] uppercase font-black bg-red-600 text-white rounded-full">
                 Custom Multiplier
               </span>
             </h1>
-            <p className="text-xs text-slate-500 font-semibold">Adjust target slider for higher multiplier or safer win chances!</p>
+            <p className="text-[11px] sm:text-xs text-slate-500 font-semibold">Adjust target slider for higher multiplier or safer win chances!</p>
           </div>
         </div>
       </div>
 
       {/* Main Dice Table */}
-      <div className="bg-gradient-to-b from-red-50 via-white to-red-50 border-2 border-red-200 rounded-3xl p-6 sm:p-10 shadow-xl relative overflow-hidden text-slate-800">
+      <div className="bg-gradient-to-b from-red-50 via-white to-red-50 border-2 border-red-200 rounded-2xl sm:rounded-3xl p-3.5 sm:p-8 md:p-10 shadow-xl relative overflow-hidden text-slate-800 w-full max-w-full">
         {/* Dice Result Display */}
-        <div className="text-center py-6">
-          <div className="inline-block p-6 rounded-3xl bg-white border-2 border-red-200 shadow-md">
+        <div className="text-center py-4 sm:py-6">
+          <div className="inline-block p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-white border-2 border-red-200 shadow-md">
             <span
-              className={`text-7xl sm:text-9xl font-black font-mono tracking-tight ${
+              className={`text-6xl sm:text-9xl font-black font-mono tracking-tight ${
                 isRolling
                   ? 'animate-pulse text-red-400'
                   : rolledNumber !== null
@@ -109,10 +109,10 @@ export default function DiceGame({ onNavigate }) {
             </span>
           </div>
 
-          <div className="min-h-[40px] mt-4 flex items-center justify-center">
+          <div className="min-h-[36px] sm:min-h-[40px] mt-3 sm:mt-4 flex items-center justify-center">
             {statusMsg && (
               <div
-                className={`px-5 py-2 rounded-2xl text-xs sm:text-sm font-black border-2 ${
+                className={`px-4 sm:px-5 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl text-[11px] sm:text-sm font-black border-2 ${
                   lastWin
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-md'
                     : 'bg-rose-50 text-rose-800 border-rose-300'
@@ -125,19 +125,19 @@ export default function DiceGame({ onNavigate }) {
         </div>
 
         {/* Target Slider & Odds */}
-        <div className="bg-white border-2 border-red-200 p-6 rounded-3xl space-y-6 shadow-md">
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div className="p-3 bg-red-50/60 rounded-2xl border-2 border-red-100">
-              <span className="text-[11px] font-bold text-slate-500 block">Roll Over</span>
-              <span className="text-xl font-black font-mono text-red-700">{rollTarget}</span>
+        <div className="bg-white border-2 border-red-200 p-3.5 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4 sm:space-y-6 shadow-md w-full max-w-full">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
+            <div className="p-2 sm:p-3 bg-red-50/60 rounded-xl sm:rounded-2xl border-2 border-red-100">
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 block">Roll Over</span>
+              <span className="text-base sm:text-xl font-black font-mono text-red-700">{rollTarget}</span>
             </div>
-            <div className="p-3 bg-red-50/60 rounded-2xl border-2 border-red-100">
-              <span className="text-[11px] font-bold text-slate-500 block">Win Chance</span>
-              <span className="text-xl font-black font-mono text-emerald-700">{winChance}%</span>
+            <div className="p-2 sm:p-3 bg-red-50/60 rounded-xl sm:rounded-2xl border-2 border-red-100">
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 block">Win Chance</span>
+              <span className="text-base sm:text-xl font-black font-mono text-emerald-700">{winChance}%</span>
             </div>
-            <div className="p-3 bg-red-50/60 rounded-2xl border-2 border-red-100">
-              <span className="text-[11px] font-bold text-slate-500 block">Multiplier</span>
-              <span className="text-xl font-black font-mono text-red-700">{multiplier}x</span>
+            <div className="p-2 sm:p-3 bg-red-50/60 rounded-xl sm:rounded-2xl border-2 border-red-100">
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 block">Multiplier</span>
+              <span className="text-base sm:text-xl font-black font-mono text-red-700">{multiplier}x</span>
             </div>
           </div>
 
@@ -180,7 +180,7 @@ export default function DiceGame({ onNavigate }) {
             <button
               onClick={handleRoll}
               disabled={isRolling || betAmount <= 0}
-              className={`py-3.5 px-8 rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-xl flex items-center justify-center space-x-2 ${
+              className={`w-full sm:w-auto py-3 sm:py-3.5 px-4 sm:px-8 rounded-xl sm:rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-xl flex items-center justify-center space-x-2 ${
                 isRolling
                   ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
                   : balance <= 0 || betAmount > balance

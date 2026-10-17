@@ -119,7 +119,7 @@ router.get('/dashboard', (req, res) => {
         COALESCE(SUM(pt.amount), 0) as volume
       FROM point_transactions pt
       JOIN point_accounts fa ON fa.id = pt.from_account_id
-      WHERE fa.owner_id = ? AND created_at >= DATE('now', '-14 days')
+      WHERE fa.owner_id = ? AND pt.created_at >= DATE('now', '-14 days')
       GROUP BY DATE(pt.created_at)
       ORDER BY date ASC
     `).all(req.user.id);

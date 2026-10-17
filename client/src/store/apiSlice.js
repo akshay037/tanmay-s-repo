@@ -182,6 +182,14 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Point', 'Auth', 'User', 'Admin', 'Transaction', 'Report', 'Audit']
     }),
+    withdrawPointsFromUser: builder.mutation({
+      query: (data) => ({
+        url: '/points/withdraw-user',
+        method: 'POST',
+        body: data
+      }),
+      invalidatesTags: ['Point', 'Auth', 'User', 'Admin', 'Transaction', 'Report', 'Audit']
+    }),
     requestPoints: builder.mutation({
       query: (data) => ({
         url: '/points/request',
@@ -201,6 +209,26 @@ export const apiSlice = createApi({
         body: data
       }),
       invalidatesTags: ['Point', 'Auth', 'Admin', 'Transaction', 'Report', 'Audit']
+    }),
+    requestUserWithdrawal: builder.mutation({
+      query: (data) => ({
+        url: '/points/user-withdrawal-request',
+        method: 'POST',
+        body: data
+      }),
+      invalidatesTags: ['Point', 'Auth', 'Transaction', 'Report', 'Notification']
+    }),
+    getUserWithdrawalRequests: builder.query({
+      query: () => '/points/user-withdrawal-requests',
+      providesTags: ['Point', 'Transaction', 'User']
+    }),
+    reviewUserWithdrawalRequest: builder.mutation({
+      query: ({ id, ...data }) => ({
+        url: `/points/user-withdrawal-requests/${id}/review`,
+        method: 'POST',
+        body: data
+      }),
+      invalidatesTags: ['Point', 'Auth', 'User', 'Admin', 'Transaction', 'Report', 'Audit', 'Notification']
     }),
     reverseTransaction: builder.mutation({
       query: ({ id, reason }) => ({
@@ -222,6 +250,13 @@ export const apiSlice = createApi({
     getTransactionDetails: builder.query({
       query: (id) => `/transactions/${id}`,
       providesTags: (result, error, id) => [{ type: 'Transaction', id }]
+    }),
+    getBalanceHistory: builder.query({
+      query: (params) => ({
+        url: '/transactions/balance-history',
+        params
+      }),
+      providesTags: ['Transaction', 'Point', 'Casino', 'Lotto']
     }),
 
     // Dashboard & Reports
@@ -359,12 +394,17 @@ export const {
   useTransferUserMutation,
   useAllocatePointsToAdminMutation,
   useDistributePointsToUserMutation,
+  useWithdrawPointsFromUserMutation,
   useRequestPointsMutation,
   useGetPointRequestsQuery,
   useReviewPointRequestMutation,
+  useRequestUserWithdrawalMutation,
+  useGetUserWithdrawalRequestsQuery,
+  useReviewUserWithdrawalRequestMutation,
   useReverseTransactionMutation,
   useGetTransactionsQuery,
   useGetTransactionDetailsQuery,
+  useGetBalanceHistoryQuery,
   useGetDashboardReportsQuery,
   useGetAuditLogsQuery,
   useGetNotificationsQuery,

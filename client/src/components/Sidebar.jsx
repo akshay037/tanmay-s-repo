@@ -20,6 +20,8 @@ import {
   Dices,
   Flame,
   Headphones,
+  Wallet,
+  ArrowUpFromLine,
   LogOut,
   X
 } from 'lucide-react';
@@ -52,6 +54,7 @@ export default function Sidebar({ currentTab, setCurrentTab, isOpen, onClose }) 
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { id: 'my-users', label: 'My Users', icon: Users },
       { id: 'distribute-points', label: 'Distribute Points', icon: Send },
+      { id: 'withdraw-requests', label: 'Withdrawal Requests', icon: ArrowUpFromLine },
       { id: 'point-requests', label: 'Point Requests', icon: GitPullRequest },
       { id: 'transactions', label: 'Transactions', icon: History },
       { id: 'reports', label: 'Reports', icon: BarChart3 },
@@ -66,7 +69,7 @@ export default function Sidebar({ currentTab, setCurrentTab, isOpen, onClose }) 
       { id: 'crash', label: 'Crash Rocket', icon: Rocket },
       { id: 'blackjack', label: 'Blackjack 21', icon: Layers },
       { id: 'dice', label: 'Crypto Dice', icon: Dices },
-      { id: 'casino-history', label: 'Betting History', icon: History }
+      { id: 'balance-history', label: 'Balance & History', icon: Wallet }
     ];
   }
 

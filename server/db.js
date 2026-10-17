@@ -82,7 +82,7 @@ function initDb() {
       from_account_id INTEGER NOT NULL REFERENCES point_accounts(id),
       to_account_id INTEGER NOT NULL REFERENCES point_accounts(id),
       amount INTEGER NOT NULL CHECK(amount > 0),
-      transaction_type TEXT NOT NULL CHECK(transaction_type IN ('SUPER_ADMIN_MINT', 'ADMIN_ALLOCATION', 'USER_ALLOCATION', 'ADMIN_REVERSAL', 'USER_REVERSAL')),
+      transaction_type TEXT NOT NULL CHECK(transaction_type IN ('SUPER_ADMIN_MINT', 'ADMIN_ALLOCATION', 'USER_ALLOCATION', 'ADMIN_REVERSAL', 'USER_REVERSAL', 'USER_WITHDRAWAL', 'ADMIN_WITHDRAWAL')),
       status TEXT NOT NULL DEFAULT 'COMPLETED' CHECK(status IN ('COMPLETED', 'FAILED', 'REVERSED')),
       from_balance_before INTEGER NOT NULL,
       from_balance_after INTEGER NOT NULL,
@@ -95,6 +95,47 @@ function initDb() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  // Migrate point_transactions if USER_WITHDRAWAL is not in existing CHECK constraint
+  try {
+    const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='point_transactions'").get();
+    if (tableInfo && tableInfo.sql && !tableInfo.sql.includes('USER_WITHDRAWAL')) {
+      db.pragma('foreign_keys = OFF');
+      db.transaction(() => {
+        db.exec(`
+          CREATE TABLE point_transactions_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            transaction_id TEXT UNIQUE NOT NULL,
+            from_account_id INTEGER NOT NULL REFERENCES point_accounts(id),
+            to_account_id INTEGER NOT NULL REFERENCES point_accounts(id),
+            amount INTEGER NOT NULL CHECK(amount > 0),
+            transaction_type TEXT NOT NULL CHECK(transaction_type IN ('SUPER_ADMIN_MINT', 'ADMIN_ALLOCATION', 'USER_ALLOCATION', 'ADMIN_REVERSAL', 'USER_REVERSAL', 'USER_WITHDRAWAL', 'ADMIN_WITHDRAWAL')),
+            status TEXT NOT NULL DEFAULT 'COMPLETED' CHECK(status IN ('COMPLETED', 'FAILED', 'REVERSED')),
+            from_balance_before INTEGER NOT NULL,
+            from_balance_after INTEGER NOT NULL,
+            to_balance_before INTEGER NOT NULL,
+            to_balance_after INTEGER NOT NULL,
+            idempotency_key TEXT UNIQUE NULL,
+            reference TEXT NULL,
+            description TEXT NULL,
+            created_by INTEGER NOT NULL REFERENCES users(id),
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+          );
+          INSERT INTO point_transactions_new SELECT * FROM point_transactions;
+          DROP TABLE point_transactions;
+          ALTER TABLE point_transactions_new RENAME TO point_transactions;
+          CREATE INDEX IF NOT EXISTS idx_point_txn_id ON point_transactions(transaction_id);
+          CREATE INDEX IF NOT EXISTS idx_point_txn_from ON point_transactions(from_account_id);
+          CREATE INDEX IF NOT EXISTS idx_point_txn_to ON point_transactions(to_account_id);
+          CREATE INDEX IF NOT EXISTS idx_point_txn_created_at ON point_transactions(created_at);
+        `);
+      })();
+      db.pragma('foreign_keys = ON');
+    }
+  } catch (migErr) {
+    console.error('Migration error on point_transactions table:', migErr);
+  }
+
 
   // Point requests table
   db.exec(`
@@ -111,6 +152,24 @@ function initDb() {
       reviewer_comment TEXT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       reviewed_at TEXT NULL
+    );
+  `);
+
+  // User withdrawal requests table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_withdrawal_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      request_code TEXT UNIQUE NOT NULL,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      admin_id INTEGER NOT NULL REFERENCES users(id),
+      amount INTEGER NOT NULL CHECK(amount > 0),
+      status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING', 'APPROVED', 'REJECTED')),
+      user_note TEXT NULL,
+      admin_note TEXT NULL,
+      reviewed_by INTEGER NULL REFERENCES users(id),
+      reviewed_at TEXT NULL,
+      transaction_id TEXT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
@@ -223,6 +282,10 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_point_txn_created_at ON point_transactions(created_at);
     CREATE INDEX IF NOT EXISTS idx_point_requests_admin ON point_requests(admin_id);
     CREATE INDEX IF NOT EXISTS idx_point_requests_status ON point_requests(status);
+    CREATE INDEX IF NOT EXISTS idx_user_withdrawal_user ON user_withdrawal_requests(user_id);
+    CREATE INDEX IF NOT EXISTS idx_user_withdrawal_admin ON user_withdrawal_requests(admin_id);
+    CREATE INDEX IF NOT EXISTS idx_user_withdrawal_status ON user_withdrawal_requests(status);
+    CREATE INDEX IF NOT EXISTS idx_user_withdrawal_code ON user_withdrawal_requests(request_code);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_id);
     CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read);
   `);

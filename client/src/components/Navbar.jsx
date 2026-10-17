@@ -8,8 +8,9 @@ import { LogOut, User, Coins, ShieldCheck, Plus, Sparkles, AlertCircle, ArrowDow
 import { useGetMeQuery, useMintPointsMutation } from '../store/apiSlice';
 import { buildTelegramWithdrawUrl } from '../utils/telegram';
 import NoPointsNotificationModal from './NoPointsNotificationModal';
+import WithdrawModal from './WithdrawModal';
 
-export default function Navbar({ onToggleSidebar }) {
+export default function Navbar({ onToggleSidebar, onNavigate }) {
   const { user } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
 
@@ -19,6 +20,7 @@ export default function Navbar({ onToggleSidebar }) {
 
   const [isMintModalOpen, setIsMintModalOpen] = useState(false);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [mintAmount, setMintAmount] = useState('');
   const [mintReason, setMintReason] = useState('');
   const [mintError, setMintError] = useState('');
@@ -57,13 +59,13 @@ export default function Navbar({ onToggleSidebar }) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b-2 border-red-100 px-3 sm:px-4 lg:px-6 py-2.5 sm:py-3 shadow-sm">
-        <div className="flex items-center justify-between gap-2 min-w-0">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b-2 border-red-100 px-2.5 sm:px-4 lg:px-6 py-2 sm:py-3 shadow-sm w-full max-w-full overflow-hidden">
+        <div className="flex items-center justify-between gap-1.5 sm:gap-2 w-full max-w-full">
           {/* Left: Mobile menu button & Brand */}
-          <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
+          <div className="flex items-center space-x-1.5 sm:space-x-3 shrink-0">
             <button
               onClick={onToggleSidebar}
-              className="lg:hidden p-2 text-slate-600 hover:text-red-700 rounded-xl bg-red-50 hover:bg-red-100 border border-red-100"
+              className="lg:hidden p-1.5 sm:p-2 text-slate-600 hover:text-red-700 rounded-xl bg-red-50 hover:bg-red-100 border border-red-100"
               title="Open Navigation"
             >
               <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,12 +73,12 @@ export default function Navbar({ onToggleSidebar }) {
               </svg>
             </button>
 
-            <div className="flex items-center space-x-2 sm:space-x-2.5">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-red-600 via-rose-600 to-red-700 flex items-center justify-center shadow-md shadow-red-500/25 shrink-0">
-                <Coins className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            <div className="flex items-center space-x-1.5 sm:space-x-2.5">
+              <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-red-600 via-rose-600 to-red-700 flex items-center justify-center shadow-md shadow-red-500/25 shrink-0">
+                <Coins className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-white" />
               </div>
               <div>
-                <span className="text-sm sm:text-base font-black text-red-800 tracking-tight">
+                <span className="text-xs sm:text-base font-black text-red-800 tracking-tight">
                   Draikola
                 </span>
                 <span className="hidden sm:inline-block ml-2 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-100 text-red-700 font-mono font-bold border border-red-200">
@@ -87,10 +89,20 @@ export default function Navbar({ onToggleSidebar }) {
           </div>
 
           {/* Right: Balance Pill, Role Badge, Notifications, User Menu */}
-          <div className="flex items-center space-x-1.5 sm:space-x-3 shrink-0">
+          <div className="flex items-center space-x-1 sm:space-x-2.5 shrink-0">
             {/* Live Balance Pill */}
-            <div className="flex items-center space-x-1.5 sm:space-x-2 bg-red-50/90 border-2 border-red-200 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-xs font-bold text-slate-800 shadow-sm">
-              <Coins className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-600 animate-pulse" />
+            <div
+              onClick={() => {
+                if (user?.role === 'USER' && onNavigate) {
+                  onNavigate('balance-history');
+                }
+              }}
+              className={`flex items-center space-x-1 sm:space-x-2 bg-red-50/90 border-2 border-red-200 px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-xs font-bold text-slate-800 shadow-sm transition-all ${
+                user?.role === 'USER' ? 'cursor-pointer hover:bg-red-100 hover:border-red-300 hover:scale-105 active:scale-95' : ''
+              }`}
+              title={user?.role === 'USER' ? 'Click to view Balance History' : undefined}
+            >
+              <Coins className="w-3 h-3 sm:w-4 sm:h-4 text-red-600 animate-pulse shrink-0" />
               <span className="text-slate-500 font-semibold hidden md:inline">Balance:</span>
               {isSuperAdmin ? (
                 <div className="flex items-center space-x-1">
@@ -99,7 +111,8 @@ export default function Navbar({ onToggleSidebar }) {
                     (${currentBalance.toLocaleString()})
                   </span>
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setMintError('');
                       setIsMintModalOpen(true);
                     }}
@@ -124,19 +137,18 @@ export default function Navbar({ onToggleSidebar }) {
                   title="Deposit Points"
                 >
                   <ArrowDownToLine className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-                  <span>Deposit</span>
+                  <span className="hidden min-[400px]:inline">Deposit</span>
                 </button>
 
-                <a
-                  href={buildTelegramWithdrawUrl({ user, meData, currentBalance })}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  onClick={() => setIsWithdrawModalOpen(true)}
                   className="flex items-center space-x-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white rounded-full text-[11px] sm:text-xs font-black shadow-md shadow-red-500/20 border border-red-400/30 transition-all hover:scale-105"
                   title="Withdraw Points"
                 >
                   <ArrowUpFromLine className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-                  <span>Withdraw</span>
-                </a>
+                  <span className="hidden min-[400px]:inline">Withdraw</span>
+                </button>
               </div>
             )}
 
@@ -246,6 +258,13 @@ export default function Navbar({ onToggleSidebar }) {
         onClose={() => setIsDepositModalOpen(false)}
         currentBalance={currentBalance}
         intent="deposit"
+      />
+
+      <WithdrawModal
+        isOpen={isWithdrawModalOpen}
+        onClose={() => setIsWithdrawModalOpen(false)}
+        currentBalance={currentBalance}
+        onOpenDeposit={() => setIsDepositModalOpen(true)}
       />
     </>
   );

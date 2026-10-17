@@ -44,11 +44,11 @@ export default function Login() {
             <Coins className="w-9 h-9 text-white animate-pulse" />
           </div>
           <h1 className="text-2xl font-black text-red-800 tracking-tight">
-            Hierarchical Point Ledger
+            Draikola
           </h1>
-          <p className="text-xs font-semibold text-slate-500 mt-1">
+          {/* <p className="text-xs font-semibold text-slate-500 mt-1">
             Super Admin &bull; Admin &bull; User Gaming & Point System
-          </p>
+          </p> */}
         </div>
 
         {/* Error Alert */}
@@ -128,7 +128,7 @@ export default function Login() {
               Super Admin
             </button>
             <button
-              onClick={() => handleQuickFill('user1', 'User@123')}
+              onClick={() => handleQuickFill('user1', '12345678')}
               className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-800 text-xs rounded-xl border border-red-200 transition-colors font-mono font-bold"
             >
               User 1

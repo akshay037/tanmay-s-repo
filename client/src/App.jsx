@@ -31,6 +31,7 @@ import LottoGame from './pages/casino/LottoGame';
 import CasinoHistory from './pages/casino/CasinoHistory';
 
 // Shared Pages
+import BalanceHistory from './pages/BalanceHistory';
 import TransactionHistory from './pages/TransactionHistory';
 import SystemReports from './pages/SystemReports';
 import Profile from './pages/Profile';
@@ -107,8 +108,10 @@ export default function App() {
           return <UserManagement onSelectUserForDistribution={handleSelectUserForDistribution} />;
         case 'distribute-points':
           return <DistributePoints selectedUser={selectedUserForDistribution} />;
+        case 'withdraw-requests':
+          return <PointRequests initialTab="user-withdrawals" />;
         case 'point-requests':
-          return <PointRequests />;
+          return <PointRequests initialTab="admin-requests" />;
         case 'transactions':
           return <TransactionHistory />;
         case 'reports':
@@ -138,8 +141,11 @@ export default function App() {
           return <DiceGame onNavigate={setCurrentTab} />;
         case 'lotto':
           return <LottoGame onNavigate={setCurrentTab} />;
+        case 'balance-history':
+        case 'transactions':
+          return <BalanceHistory initialTab="ALL" onNavigate={setCurrentTab} />;
         case 'casino-history':
-          return <CasinoHistory onNavigate={setCurrentTab} />;
+          return <BalanceHistory initialTab="GAMES" onNavigate={setCurrentTab} />;
         case 'profile':
           return <Profile />;
         default:
@@ -151,11 +157,11 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50/40 via-white to-red-50/30 text-slate-800 flex flex-col font-sans">
+    <div className="min-h-screen bg-gradient-to-b from-red-50/40 via-white to-red-50/30 text-slate-800 flex flex-col font-sans w-full max-w-full overflow-x-hidden">
       {/* Navbar Header */}
-      <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+      <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} onNavigate={setCurrentTab} />
 
-      <div className="flex flex-1 relative">
+      <div className="flex flex-1 relative w-full max-w-full min-w-0 overflow-x-hidden">
         {/* Navigation Sidebar Drawer */}
         <Sidebar
           currentTab={currentTab}
@@ -165,7 +171,7 @@ export default function App() {
         />
 
         {/* Main Content View Container */}
-        <main className="flex-1 lg:pl-64 p-3 sm:p-4 lg:p-8 max-w-7xl mx-auto w-full min-w-0 overflow-x-hidden">
+        <main className="flex-1 lg:pl-64 p-2.5 sm:p-4 lg:p-8 max-w-7xl mx-auto w-full min-w-0 overflow-x-hidden">
           {renderContent()}
         </main>
       </div>
