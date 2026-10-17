@@ -1,19 +1,15 @@
-/**
- * Telegram chat with @Costumer24.
- *
- * `#@Costumer24` on Telegram Web K only shows a dead "Send Message" button.
- * Use Telegram Web A's tgaddr deep-link instead: it asks for login when needed,
- * then opens the chat (and prefills the request text).
- */
 export const TELEGRAM_ADMIN_HANDLE = 'Costumer24';
-export const TELEGRAM_CHAT_URL = `https://web.telegram.org/a/#?tgaddr=${encodeURIComponent(`tg://resolve?domain=${TELEGRAM_ADMIN_HANDLE}`)}`;
+export const TELEGRAM_CHAT_URL = `https://t.me/${TELEGRAM_ADMIN_HANDLE}`;
 
-function buildTelegramUrl(message = '') {
-  const resolveLink = message
-    ? `tg://resolve?domain=${TELEGRAM_ADMIN_HANDLE}&text=${encodeURIComponent(message)}`
-    : `tg://resolve?domain=${TELEGRAM_ADMIN_HANDLE}`;
+export function buildTelegramUrl(message = '') {
+  return message
+    ? `https://t.me/${TELEGRAM_ADMIN_HANDLE}?text=${encodeURIComponent(message)}`
+    : `https://t.me/${TELEGRAM_ADMIN_HANDLE}`;
+}
 
-  return `https://web.telegram.org/a/#?tgaddr=${encodeURIComponent(resolveLink)}`;
+export function openTelegram(message = '') {
+  const url = buildTelegramUrl(message);
+  window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 function getPlayerDetails({ user, meData, currentBalance } = {}) {

@@ -165,7 +165,7 @@ export default function Sidebar({ currentTab, setCurrentTab, isOpen, onClose }) 
           </button>
 
           <div className="text-[11px] text-slate-400 font-semibold text-center">
-            Draikola &copy; 2026. Red Edition.
+            Draikola &copy; 2017. Red Edition.
           </div>
         </div>
       </aside>
