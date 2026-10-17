@@ -1,15 +1,58 @@
 export const TELEGRAM_ADMIN_HANDLE = 'Costumer24';
 export const TELEGRAM_CHAT_URL = `https://t.me/${TELEGRAM_ADMIN_HANDLE}`;
 
+export function isMobileDevice() {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
 export function buildTelegramUrl(message = '') {
+  const isMobile = isMobileDevice();
+
+  if (isMobile) {
+    // Direct native app deep-link: opens Telegram App immediately without the "Send Message" web page
+    return message
+      ? `tg://resolve?domain=${TELEGRAM_ADMIN_HANDLE}&text=${encodeURIComponent(message)}`
+      : `tg://resolve?domain=${TELEGRAM_ADMIN_HANDLE}`;
+  }
+
+  // Desktop: opens t.me web gateway
   return message
     ? `https://t.me/${TELEGRAM_ADMIN_HANDLE}?text=${encodeURIComponent(message)}`
     : `https://t.me/${TELEGRAM_ADMIN_HANDLE}`;
 }
 
-export function openTelegram(message = '') {
-  const url = buildTelegramUrl(message);
-  window.open(url, '_blank', 'noopener,noreferrer');
+export function openTelegram(message = '', e = null) {
+  if (e && e.preventDefault) {
+    e.preventDefault();
+  }
+
+  const isMobile = isMobileDevice();
+  const appUrl = `tg://resolve?domain=${TELEGRAM_ADMIN_HANDLE}${message ? `&text=${encodeURIComponent(message)}` : ''}`;
+  const webUrl = `https://t.me/${TELEGRAM_ADMIN_HANDLE}${message ? `?text=${encodeURIComponent(message)}` : ''}`;
+
+  if (isMobile) {
+    let hasLeftPage = false;
+    const markOpened = () => { hasLeftPage = true; };
+
+    window.addEventListener('blur', markOpened, { once: true });
+    window.addEventListener('pagehide', markOpened, { once: true });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) hasLeftPage = true;
+    }, { once: true });
+
+    // 1. Try launching the installed Telegram app directly
+    window.location.href = appUrl;
+
+    // 2. Fallback: If app is NOT installed, redirect to web after 1.5 seconds
+    setTimeout(() => {
+      if (!hasLeftPage && !document.hidden) {
+        window.location.href = webUrl;
+      }
+    }, 1500);
+  } else {
+    window.open(webUrl, '_blank', 'noopener,noreferrer');
+  }
 }
 
 function getPlayerDetails({ user, meData, currentBalance } = {}) {
