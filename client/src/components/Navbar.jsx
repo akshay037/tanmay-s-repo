@@ -9,6 +9,7 @@ import { useGetMeQuery, useMintPointsMutation } from '../store/apiSlice';
 import { buildTelegramWithdrawUrl } from '../utils/telegram';
 import NoPointsNotificationModal from './NoPointsNotificationModal';
 import WithdrawModal from './WithdrawModal';
+import logoImg from '../assets/logo.png';
 
 export default function Navbar({ onToggleSidebar, onNavigate }) {
   const { user } = useSelector((state) => state.auth);
@@ -74,9 +75,11 @@ export default function Navbar({ onToggleSidebar, onNavigate }) {
             </button>
 
             <div className="flex items-center space-x-1.5 sm:space-x-2.5">
-              <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-red-600 via-rose-600 to-red-700 flex items-center justify-center shadow-md shadow-red-500/25 shrink-0">
-                <Coins className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-white" />
-              </div>
+              <img
+                src={logoImg}
+                alt="Logo"
+                className="w-8 h-8 sm:w-10 sm:h-10 object-contain rounded-xl drop-shadow-sm shrink-0"
+              />
               <div>
                 <span className="text-xs sm:text-base font-black text-red-800 tracking-tight">
                   Draikola

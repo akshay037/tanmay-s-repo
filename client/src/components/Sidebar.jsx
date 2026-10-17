@@ -26,6 +26,7 @@ import {
   X
 } from 'lucide-react';
 import { buildTelegramDepositUrl, buildTelegramWithdrawUrl, buildTelegramSupportUrl } from '../utils/telegram';
+import logoImg from '../assets/logo.png';
 
 export default function Sidebar({ currentTab, setCurrentTab, isOpen, onClose }) {
   const { user } = useSelector((state) => state.auth);
@@ -89,23 +90,34 @@ export default function Sidebar({ currentTab, setCurrentTab, isOpen, onClose }) 
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } pt-16 flex flex-col shadow-md`}
       >
-        <div className="px-4 py-4 border-b-2 border-red-100 flex items-center justify-between">
-          <div className="flex items-center space-x-3 p-2.5 rounded-2xl bg-red-50/80 border-2 border-red-200/80 flex-1 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-rose-600 text-white flex items-center justify-center font-black text-lg shadow-sm shrink-0">
+        {/* Sidebar Brand & User Block */}
+        <div className="px-4 py-3 border-b-2 border-red-100 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2.5 min-w-0">
+              <img src={logoImg} alt="Logo" className="w-8 h-8 object-contain rounded-xl shrink-0" />
+              <div className="min-w-0">
+                <span className="text-sm font-black text-red-800 tracking-tight block truncate">Draikola</span>
+                <span className="text-[9px] uppercase tracking-wider text-red-600 font-bold block">Red Edition</span>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="lg:hidden p-1.5 text-slate-400 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors shrink-0"
+              title="Close Sidebar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="flex items-center space-x-2.5 p-2 rounded-xl bg-red-50/80 border border-red-200/80 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-red-600 to-rose-600 text-white flex items-center justify-center font-black text-sm shadow-sm shrink-0">
               {user.username.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-black text-slate-900 truncate">{user.name || user.username}</p>
-              <p className="text-xs font-semibold text-red-700 truncate">@{user.username}</p>
+              <p className="text-xs font-black text-slate-900 truncate">{user.name || user.username}</p>
+              <p className="text-[11px] font-semibold text-red-700 truncate">@{user.username}</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="lg:hidden ml-2 p-2 text-slate-400 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors shrink-0"
-            title="Close Sidebar"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">

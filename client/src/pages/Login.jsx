@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLoginMutation } from '../store/apiSlice';
 import { Coins, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import logoImg from '../assets/logo.png';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -40,12 +41,16 @@ export default function Login() {
       <div className="w-full max-w-md bg-white border-2 border-red-200 rounded-3xl shadow-2xl p-6 sm:p-8 z-10">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-red-600 via-rose-600 to-red-700 flex items-center justify-center mx-auto mb-4 shadow-xl shadow-red-500/30 border-2 border-white">
-            <Coins className="w-9 h-9 text-white animate-pulse" />
+          <div className="flex flex-col items-center justify-center mb-4">
+            <img
+              src={logoImg}
+              alt="Logo"
+              className="w-20 h-20 sm:w-24 sm:h-24 object-contain rounded-2xl drop-shadow-md mb-2"
+            />
+            <h1 className="text-2xl font-black text-red-800 tracking-tight">
+              Draikola
+            </h1>
           </div>
-          <h1 className="text-2xl font-black text-red-800 tracking-tight">
-            Draikola
-          </h1>
           {/* <p className="text-xs font-semibold text-slate-500 mt-1">
             Super Admin &bull; Admin &bull; User Gaming & Point System
           </p> */}
