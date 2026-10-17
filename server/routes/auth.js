@@ -44,8 +44,8 @@ router.post('/login', loginLimiter, (req, res) => {
     let lockedUntil = null;
 
     if (failedAttempts >= 5) {
-      // Lock for 15 minutes after 5 failed attempts
-      lockedUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+      // Lock for 5 minutes after 5 failed attempts
+      lockedUntil = new Date(Date.now() + 5 * 60 * 1000).toISOString();
     }
 
     db.prepare(`

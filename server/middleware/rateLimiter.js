@@ -2,10 +2,10 @@ const rateLimit = require('express-rate-limit');
 
 // Rate limiter for authentication endpoints (login attempts)
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 5 * 60 * 1000, // 5 minutes
   max: 10, // Limit each IP to 10 login requests per windowMs
   message: {
-    error: 'Too many failed login attempts from this IP address. Please try again after 15 minutes.'
+    error: 'Too many failed login attempts from this IP address. Please try again after 5 minutes.'
   },
   standardHeaders: true,
   legacyHeaders: false
