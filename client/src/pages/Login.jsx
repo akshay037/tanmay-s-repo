@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLoginMutation } from '../store/apiSlice';
 import { Coins, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import logoImg from '../assets/logo.png';
+import { buildTelegramUrl, openTelegram } from '../utils/telegram';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -27,33 +28,25 @@ export default function Login() {
     }
   };
 
-  const handleQuickFill = (u, p) => {
-    setUsername(u);
-    setPassword(p);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-100/60 flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
       {/* Red & Rose Ambient Glows */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-400/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-rose-400/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="w-full max-w-md bg-white border-2 border-red-200 rounded-3xl shadow-2xl p-6 sm:p-8 z-10">
+      <div className="w-full max-w-md bg-white border-2 border-red-200 rounded-3xl shadow-2xl p-4 sm:p-6 z-10">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex flex-col items-center justify-center mb-4">
+        <div className="text-center mb-4">
+          <div className="flex flex-col items-center justify-center mb-2">
             <img
               src={logoImg}
               alt="Logo"
-              className="w-20 h-20 sm:w-24 sm:h-24 object-contain rounded-2xl drop-shadow-md mb-2"
+              className="w-20 h-20 sm:w-24 sm:h-24 object-contain rounded-2xl drop-shadow-md mb-1"
             />
             <h1 className="text-2xl font-black text-red-800 tracking-tight">
               Draikola
             </h1>
           </div>
-          {/* <p className="text-xs font-semibold text-slate-500 mt-1">
-            Super Admin &bull; Admin &bull; User Gaming & Point System
-          </p> */}
         </div>
 
         {/* Error Alert */}
@@ -121,9 +114,8 @@ export default function Login() {
             <span>Sign In to Dashboard</span>
           </button>
         </form>
-
-        {/* Quick Demo Credentials Box */}
-        <div className="mt-8 pt-6 border-t-2 border-red-100 text-center">
+                
+        {/* <div className="mt-8 pt-6 border-t-2 border-red-100 text-center">
           <p className="text-xs text-slate-500 font-bold mb-3">Quick Demo Credentials:</p>
           <div className="flex flex-wrap justify-center gap-2">
             <button
@@ -139,7 +131,24 @@ export default function Login() {
               User 1
             </button>
           </div>
+        </div> */}
+
+        {/* Contact Admin / Customer Care link */}
+        <div className="mt-6 pt-4 border-t-2 border-red-100 text-center">
+          <p className="text-xs text-slate-600 font-medium">
+            Want to register? Contact Customer Care{' '} <br />
+            <a
+              href={buildTelegramUrl('Hello Customer Care, I would like to register a new account on Draikola.')}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => openTelegram('Hello Customer Care, I would like to register a new account on Draikola.', e)}
+              className="font-bold text-red-600 hover:text-red-700 underline underline-offset-4 decoration-2 decoration-red-400 hover:decoration-red-600 transition-all cursor-pointer"
+            >
+              Click here
+            </a>
+          </p>
         </div>
+
       </div>
     </div>
   );

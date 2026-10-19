@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../store/authSlice';
 import NotificationBell from './NotificationBell';
 import Badge from './Badge';
 import Modal from './Modal';
-import { LogOut, User, Coins, ShieldCheck, Plus, Sparkles, AlertCircle, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
+import { LogOut, User, Settings, Coins, ShieldCheck, Plus, Sparkles, AlertCircle, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 import { useGetMeQuery, useMintPointsMutation } from '../store/apiSlice';
 import { buildTelegramWithdrawUrl } from '../utils/telegram';
 import NoPointsNotificationModal from './NoPointsNotificationModal';
@@ -25,6 +25,19 @@ export default function Navbar({ onToggleSidebar, onNavigate }) {
   const [mintAmount, setMintAmount] = useState('');
   const [mintReason, setMintReason] = useState('');
   const [mintError, setMintError] = useState('');
+
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const currentBalance = meData?.pointAccount?.balance ?? (meData?.balance !== undefined ? meData.balance : (user?.balance ?? 0));
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
@@ -60,7 +73,7 @@ export default function Navbar({ onToggleSidebar, onNavigate }) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b-2 border-red-100 px-2.5 sm:px-4 lg:px-6 py-2 sm:py-3 shadow-sm w-full max-w-full overflow-hidden">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b-2 border-red-100 px-2.5 sm:px-4 lg:px-6 py-2 sm:py-3 shadow-sm w-full max-w-full">
         <div className="flex items-center justify-between gap-1.5 sm:gap-2 w-full max-w-full">
           {/* Left: Mobile menu button & Brand */}
           <div className="flex items-center space-x-1.5 sm:space-x-3 shrink-0">
@@ -155,24 +168,69 @@ export default function Navbar({ onToggleSidebar, onNavigate }) {
               </div>
             )}
 
-            {/* User Role Badge */}
-            {user?.role && (
-              <div className="hidden md:block">
-                <Badge status={user.role} text={user.role.replace('_', ' ')} />
-              </div>
-            )}
-
             {/* Notification Bell */}
             <NotificationBell />
 
-            {/* Logout button (Desktop view; on mobile, logout is on sidebar at the last) */}
-            <button
-              onClick={handleLogout}
-              className="hidden sm:flex p-2 text-slate-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors border border-transparent hover:border-red-100"
-              title="Sign Out"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
+            {/* User Profile Avatar Dropdown Menu */}
+            <div className="relative dropdown dropdown-end font-sans" ref={profileMenuRef}>
+              <div
+                tabIndex={0}
+                role="button"
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                className="btn btn-ghost btn-circle avatar p-0.5 rounded-full ring-2 ring-red-200 hover:ring-red-500 transition-all cursor-pointer flex items-center justify-center shrink-0 focus:outline-none"
+                title="Account menu"
+              >
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-red-600 via-rose-600 to-red-700 text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-sm select-none">
+                  {(user?.name || user?.username || 'U').charAt(0).toUpperCase()}
+                </div>
+              </div>
+
+              {isProfileMenuOpen && (
+                <ul
+                  tabIndex={-1}
+                  className="menu menu-sm dropdown-content bg-white border-2 border-red-200 rounded-2xl shadow-2xl z-[100] mt-2.5 w-56 p-2 absolute right-0 top-full divide-y divide-red-100 animate-fadeIn text-slate-800"
+                >
+
+                <li className="p-2 mb-1 bg-red-50/60 rounded-xl">
+                  <p className="text-xs font-semibold text-slate-900 truncate">
+                    <span className="font-black">Name :</span> {user?.name || user?.username}
+                  </p>
+
+                  <p className="text-[11px] font-semibold text-red-700 truncate">
+                    <span className="font-black">User ID :</span> {user?.username}
+                  </p>
+                </li>
+
+                  {/* <li className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        if (onNavigate) onNavigate('profile');
+                      }}
+                      className="w-full flex items-center space-x-2 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-red-50 hover:text-red-700 rounded-xl transition-colors cursor-pointer group"
+                    >
+                      <Settings className="w-4 h-4 text-slate-400 group-hover:text-red-600 transition-colors" />
+                      <span>Settings</span>
+                    </button>
+                  </li>
+
+                  <li className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        handleLogout();
+                      }}
+                      className="w-full flex items-center space-x-2 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl transition-colors cursor-pointer group"
+                    >
+                      <LogOut className="w-4 h-4 text-rose-500 group-hover:rotate-12 transition-transform" />
+                      <span>Logout</span>
+                    </button>
+                  </li> */}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
       </header>

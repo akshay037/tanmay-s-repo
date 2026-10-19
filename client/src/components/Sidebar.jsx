@@ -88,7 +88,7 @@ export default function Sidebar({ currentTab, setCurrentTab, isOpen, onClose }) 
       <aside
         className={`fixed top-0 left-0 bottom-0 z-40 w-64 bg-white border-r-2 border-red-100 transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } pt-16 flex flex-col shadow-md`}
+        } pt-2 flex flex-col shadow-md`}
       >
         {/* Sidebar Brand & User Block */}
         <div className="px-4 py-3 border-b-2 border-red-100 space-y-3">
@@ -107,16 +107,6 @@ export default function Sidebar({ currentTab, setCurrentTab, isOpen, onClose }) 
             >
               <X className="w-5 h-5" />
             </button>
-          </div>
-
-          <div className="flex items-center space-x-2.5 p-2 rounded-xl bg-red-50/80 border border-red-200/80 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-red-600 to-rose-600 text-white flex items-center justify-center font-black text-sm shadow-sm shrink-0">
-              {user.username.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-black text-slate-900 truncate">{user.name || user.username}</p>
-              <p className="text-[11px] font-semibold text-red-700 truncate">@{user.username}</p>
-            </div>
           </div>
         </div>
 
