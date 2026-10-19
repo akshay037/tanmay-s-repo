@@ -345,7 +345,7 @@ export default function WithdrawModal({
                 {/* Optional note / payment details */}
                 <div>
                   <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                    USDT Address / Bank / UPI Payout Details (Optional):
+                    USDT Address Details (Optional):
                   </label>
                   <input
                     type="text"
