@@ -351,7 +351,6 @@ export default function WithdrawModal({
                     type="text"
                     value={userNote}
                     onChange={(e) => setUserNote(e.target.value)}
-                    placeholder="e.g. USDT (TRC20 / ERC20) Address, UPI ID, or Bank Account"
                     maxLength={250}
                     className="w-full px-3 py-2 bg-white border border-red-200 rounded-xl text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-red-500"
                   />
