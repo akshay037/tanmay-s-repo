@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const db = require('../db');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const { transferPoints, reverseTransaction, mintSuperAdminPoints } = require('../utils/ledger');
@@ -649,6 +650,300 @@ router.post('/user-withdrawal-requests/:id/review', requireRole('ADMIN', 'SUPER_
 router.post('/withdraw-requests/:id/review', requireRole('ADMIN', 'SUPER_ADMIN'), handleReviewWithdrawal);
 router.post('/withdrawal-requests/:id/review', requireRole('ADMIN', 'SUPER_ADMIN'), handleReviewWithdrawal);
 router.post('/user-withdrawals/:id/review', requireRole('ADMIN', 'SUPER_ADMIN'), handleReviewWithdrawal);
+
+/**
+ * 8. P2P USER-TO-USER INTERNAL TRANSFERS (PLATFORM-WIDE)
+ */
+
+// Helper to generate transfer codes (TRF-000001)
+function generateTransferCode() {
+  const row = db.prepare("SELECT MAX(id) as max_id FROM user_transfers").get();
+  const nextId = (row && row.max_id ? row.max_id : 0) + 1;
+  return `TRF-${String(nextId).padStart(6, '0')}`;
+}
+
+// 8a. Verify Recipient by Username, User ID, or Name (with Cross-Admin Disambiguation)
+const handleVerifyRecipient = (req, res) => {
+  const { query, adminFilter } = req.body;
+  if (!query) {
+    return res.status(400).json({ error: 'Recipient Username, User ID, or Name is required.' });
+  }
+
+  const cleanRaw = String(query).trim();
+  let targetAdminPrefix = adminFilter ? String(adminFilter).trim().toLowerCase() : null;
+  let cleanQuery = cleanRaw;
+
+  // Handle format like "adminUsername:userId" or "adminUsername/username"
+  if (cleanRaw.includes(':') || cleanRaw.includes('/')) {
+    const parts = cleanRaw.split(/[:/]/);
+    targetAdminPrefix = parts[0].trim().toLowerCase();
+    cleanQuery = parts.slice(1).join('').trim();
+  }
+
+  // Get current sender's Admin ID
+  const senderProfile = db.prepare('SELECT admin_id FROM user_profiles WHERE user_id = ?').get(req.user.id);
+  const senderAdminId = senderProfile ? senderProfile.admin_id : null;
+
+  const isNumeric = /^\d+$/.test(cleanQuery);
+  const numericVal = isNumeric ? parseInt(cleanQuery, 10) : null;
+
+  let baseSql = `
+    SELECT
+      u.id,
+      u.username,
+      u.status,
+      u.role,
+      up.id as profileId,
+      up.name,
+      up.admin_id as adminId,
+      adm_u.username as adminUsername,
+      adm_prof.name as adminName
+    FROM users u
+    JOIN user_profiles up ON up.user_id = u.id
+    JOIN users adm_u ON adm_u.id = up.admin_id
+    LEFT JOIN admin_profiles adm_prof ON adm_prof.user_id = up.admin_id
+    WHERE u.role = 'USER' AND u.id != ?
+  `;
+  const params = [req.user.id];
+
+  if (targetAdminPrefix) {
+    baseSql += ` AND (LOWER(adm_u.username) = ? OR adm_u.id = ?)`;
+    params.push(targetAdminPrefix, isNaN(parseInt(targetAdminPrefix, 10)) ? -1 : parseInt(targetAdminPrefix, 10));
+  }
+
+  if (isNumeric) {
+    // Check global user_id OR local profile_id OR exact username
+    baseSql += ` AND (u.id = ? OR up.id = ? OR u.username = ?)`;
+    params.push(numericVal, numericVal, cleanQuery);
+  } else {
+    // Check exact username, or display name, or partial matches
+    baseSql += ` AND (LOWER(u.username) = LOWER(?) OR LOWER(up.name) = LOWER(?) OR LOWER(u.username) LIKE LOWER(?) OR LOWER(up.name) LIKE LOWER(?))`;
+    params.push(cleanQuery, cleanQuery, `%${cleanQuery}%`, `%${cleanQuery}%`);
+  }
+
+  baseSql += ` ORDER BY CASE WHEN u.id = ? THEN 1 WHEN LOWER(u.username) = LOWER(?) THEN 2 ELSE 3 END, u.created_at ASC LIMIT 10`;
+  params.push(numericVal || -1, cleanQuery);
+
+  const candidates = db.prepare(baseSql).all(...params);
+
+  if (!candidates || candidates.length === 0) {
+    return res.status(404).json({
+      error: `No active player found matching '${cleanRaw}'. Please verify the User ID or Username.`
+    });
+  }
+
+  // Active filter
+  const activeCandidates = candidates.filter(c => c.status === 'ACTIVE');
+  if (activeCandidates.length === 0) {
+    return res.status(400).json({ error: 'The recipient account is currently inactive.' });
+  }
+
+  // If exact single match found OR exact user ID match that is unique
+  const exactIdMatch = isNumeric ? activeCandidates.filter(c => c.id === numericVal) : [];
+  const exactUsernameMatch = activeCandidates.filter(c => c.username.toLowerCase() === cleanQuery.toLowerCase());
+
+  let chosen = null;
+  if (activeCandidates.length === 1) {
+    chosen = activeCandidates[0];
+  } else if (exactIdMatch.length === 1 && (!targetAdminPrefix || exactIdMatch[0].adminUsername.toLowerCase() === targetAdminPrefix)) {
+    chosen = exactIdMatch[0];
+  } else if (exactUsernameMatch.length === 1 && (!targetAdminPrefix || exactUsernameMatch[0].adminUsername.toLowerCase() === targetAdminPrefix)) {
+    chosen = exactUsernameMatch[0];
+  }
+
+  if (chosen) {
+    return res.json({
+      valid: true,
+      ambiguous: false,
+      user: {
+        id: chosen.id,
+        profileId: chosen.profileId,
+        username: chosen.username,
+        name: chosen.name || chosen.username,
+        adminId: chosen.adminId,
+        adminUsername: chosen.adminUsername || 'Admin',
+        adminName: chosen.adminName || chosen.adminUsername || 'Admin Club',
+        isSameAdmin: chosen.adminId === senderAdminId
+      }
+    });
+  }
+
+  // Multiple candidates found across different admins or profiles
+  return res.json({
+    valid: false,
+    ambiguous: true,
+    message: `Found ${activeCandidates.length} players matching '${cleanRaw}'. Please select the intended recipient.`,
+    candidates: activeCandidates.map(c => ({
+      id: c.id,
+      profileId: c.profileId,
+      username: c.username,
+      name: c.name || c.username,
+      adminId: c.adminId,
+      adminUsername: c.adminUsername || 'Admin',
+      adminName: c.adminName || c.adminUsername || 'Admin Club',
+      isSameAdmin: c.adminId === senderAdminId
+    }))
+  });
+};
+
+// Mount verify-recipient and aliases
+router.post('/verify-recipient', requireRole('USER', 'ADMIN', 'SUPER_ADMIN'), handleVerifyRecipient);
+router.post('/recipient/verify', requireRole('USER', 'ADMIN', 'SUPER_ADMIN'), handleVerifyRecipient);
+router.post('/check-recipient', requireRole('USER', 'ADMIN', 'SUPER_ADMIN'), handleVerifyRecipient);
+router.post('/verify-user', requireRole('USER', 'ADMIN', 'SUPER_ADMIN'), handleVerifyRecipient);
+router.get('/verify-recipient', (req, res) => {
+  res.json({ message: 'verify-recipient endpoint is active. Send POST with { query: "userIdOrUsername" }.' });
+});
+
+// 8b. Execute User-to-User Transfer
+const handleUserTransfer = (req, res) => {
+  const { recipientId, amount, password, note, idempotencyKey } = req.body;
+
+  if (!recipientId || !amount) {
+    return res.status(400).json({ error: 'Recipient ID and amount are required.' });
+  }
+
+  const parsedAmount = parseInt(amount, 10);
+  if (isNaN(parsedAmount) || parsedAmount <= 0) {
+    return res.status(400).json({ error: 'Transfer amount must be a positive integer.' });
+  }
+
+  if (!password) {
+    return res.status(400).json({ error: 'Account password is required to authorize the transfer.' });
+  }
+
+  // 1. Verify Sender Password & Active Status
+  const senderUser = db.prepare("SELECT * FROM users WHERE id = ?").get(req.user.id);
+  if (!senderUser || senderUser.status !== 'ACTIVE') {
+    return res.status(403).json({ error: 'Your account is inactive.' });
+  }
+
+  const isPasswordValid = bcrypt.compareSync(password, senderUser.password_hash);
+  if (!isPasswordValid) {
+    return res.status(401).json({ error: 'Incorrect password. Authorization failed.' });
+  }
+
+  const targetId = parseInt(recipientId, 10);
+  if (targetId === req.user.id) {
+    return res.status(400).json({ error: 'Cannot transfer points to yourself.' });
+  }
+
+  // 2. Verify Recipient
+  const recipientUser = db.prepare("SELECT * FROM users WHERE id = ?").get(targetId);
+  if (!recipientUser || recipientUser.status !== 'ACTIVE') {
+    return res.status(404).json({ error: 'Recipient account is not active or does not exist.' });
+  }
+
+  const transferCode = generateTransferCode();
+
+  // 3. Execute Atomic Transfer
+  const transferTxn = db.transaction(() => {
+    const result = transferPoints({
+      req,
+      fromOwnerId: req.user.id,
+      fromOwnerType: senderUser.role,
+      toOwnerId: recipientUser.id,
+      toOwnerType: recipientUser.role,
+      amount: parsedAmount,
+      transactionType: 'USER_TRANSFER',
+      reference: transferCode,
+      description: note ? note.trim() : `P2P transfer from @${senderUser.username} to @${recipientUser.username}`,
+      idempotencyKey
+    });
+
+    // Record in user_transfers
+    db.prepare(`
+      INSERT INTO user_transfers (
+        transfer_code, sender_id, receiver_id, amount, note, transaction_id
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      transferCode,
+      req.user.id,
+      recipientUser.id,
+      parsedAmount,
+      note ? note.trim() : null,
+      result.transaction.transaction_id
+    );
+
+    // Notifications
+    sendNotification(
+      req.user.id,
+      'Transfer Sent',
+      `You successfully sent ${parsedAmount.toLocaleString()} points to @${recipientUser.username}. Ref: ${transferCode}`,
+      'SUCCESS'
+    );
+
+    sendNotification(
+      recipientUser.id,
+      'Points Received',
+      `You received ${parsedAmount.toLocaleString()} points from @${senderUser.username}! Ref: ${transferCode}`,
+      'SUCCESS'
+    );
+
+    return result;
+  });
+
+  try {
+    const result = transferTxn();
+    return res.json({
+      message: `Successfully transferred ${parsedAmount.toLocaleString()} points to @${recipientUser.username}.`,
+      transferCode,
+      transaction: result.transaction,
+      newBalance: result.transaction.from_balance_after,
+      recipient: recipientUser.username
+    });
+  } catch (err) {
+    return res.status(400).json({ error: err.message || 'Transfer failed.' });
+  }
+};
+
+// Mount user-transfer and aliases
+router.post('/user-transfer', requireRole('USER', 'ADMIN', 'SUPER_ADMIN'), handleUserTransfer);
+router.post('/transfer', requireRole('USER', 'ADMIN', 'SUPER_ADMIN'), handleUserTransfer);
+router.post('/p2p-transfer', requireRole('USER', 'ADMIN', 'SUPER_ADMIN'), handleUserTransfer);
+router.post('/transfer-points', requireRole('USER', 'ADMIN', 'SUPER_ADMIN'), handleUserTransfer);
+router.post('/send-points', requireRole('USER', 'ADMIN', 'SUPER_ADMIN'), handleUserTransfer);
+router.get('/user-transfer', (req, res) => {
+  res.json({ message: 'user-transfer endpoint is active. Send POST with { recipientId, amount, password }.' });
+});
+
+// 8c. Get My P2P Transfers
+const handleGetMyTransfers = (req, res) => {
+  const userId = req.user.id;
+  const transfers = db.prepare(`
+    SELECT
+      ut.id,
+      ut.transfer_code as transferCode,
+      ut.amount,
+      ut.note,
+      ut.transaction_id as transactionId,
+      ut.created_at as createdAt,
+      CASE WHEN ut.sender_id = ? THEN 'SENT' ELSE 'RECEIVED' END as direction,
+      sender.id as senderId,
+      sender.username as senderUsername,
+      receiver.id as receiverId,
+      receiver.username as receiverUsername
+    FROM user_transfers ut
+    JOIN users sender ON sender.id = ut.sender_id
+    JOIN users receiver ON receiver.id = ut.receiver_id
+    WHERE ut.sender_id = ? OR ut.receiver_id = ?
+    ORDER BY ut.created_at DESC
+    LIMIT 100
+  `).all(userId, userId, userId);
+
+  return res.json(transfers);
+};
+
+// Mount my-transfers and aliases
+router.get('/my-transfers', requireRole('USER', 'ADMIN', 'SUPER_ADMIN'), handleGetMyTransfers);
+router.get('/transfers', requireRole('USER', 'ADMIN', 'SUPER_ADMIN'), handleGetMyTransfers);
+router.get('/transfer-history', requireRole('USER', 'ADMIN', 'SUPER_ADMIN'), handleGetMyTransfers);
+router.get('/p2p-transfers', requireRole('USER', 'ADMIN', 'SUPER_ADMIN'), handleGetMyTransfers);
+
+router.handleVerifyRecipient = handleVerifyRecipient;
+router.handleUserTransfer = handleUserTransfer;
+router.handleGetMyTransfers = handleGetMyTransfers;
+router.handleUserWithdrawal = handleUserWithdrawal;
 
 module.exports = router;
 

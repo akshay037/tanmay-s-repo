@@ -12,11 +12,13 @@ import Badge from '../components/Badge';
 import ExportButtons from '../components/ExportButtons';
 import NoPointsNotificationModal from '../components/NoPointsNotificationModal';
 import WithdrawModal from '../components/WithdrawModal';
+import TransferModal from '../components/TransferModal';
 import {
   History,
   Coins,
   ArrowDownToLine,
   ArrowUpFromLine,
+  ArrowLeftRight,
   Gamepad2,
   Trophy,
   Search,
@@ -54,6 +56,7 @@ export default function BalanceHistory({ initialTab = 'ALL', onNavigate }) {
   // Modals
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
   useEffect(() => {
@@ -84,6 +87,7 @@ export default function BalanceHistory({ initialTab = 'ALL', onNavigate }) {
   const depositsList = useMemo(() => {
     return rawTransactions
       .filter((t) => {
+        if (t.transactionType === 'USER_TRANSFER') return false;
         const isRecipient =
           t.toOwnerId === user.id ||
           t.toUsername === user.username ||
@@ -115,6 +119,7 @@ export default function BalanceHistory({ initialTab = 'ALL', onNavigate }) {
     // 2a. Completed ledger transactions
     const txnWithdrawals = rawTransactions
       .filter((t) => {
+        if (t.transactionType === 'USER_TRANSFER') return false;
         const isSender =
           t.fromOwnerId === user.id ||
           t.fromUsername === user.username ||
@@ -228,19 +233,46 @@ export default function BalanceHistory({ initialTab = 'ALL', onNavigate }) {
     );
   }, [recentCasinoBets, lottoBets]);
 
+  // 2c. Separate P2P Transfers (User-to-User)
+  const transfersList = useMemo(() => {
+    return rawTransactions
+      .filter((t) => t.transactionType === 'USER_TRANSFER')
+      .map((t) => {
+        const isSender = t.fromOwnerId === user.id || t.fromUsername === user.username;
+        return {
+          id: t.transactionId || `TXN-${t.id}`,
+          type: 'TRANSFER',
+          category: 'TRANSFER',
+          title: isSender ? `Sent to @${t.toUsername || 'User'}` : `Received from @${t.fromUsername || 'User'}`,
+          amount: t.amount,
+          direction: isSender ? '-' : '+',
+          balanceBefore: isSender ? t.fromBalanceBefore : t.toBalanceBefore,
+          balanceAfter: isSender ? t.fromBalanceAfter : t.toBalanceAfter,
+          status: t.status || 'COMPLETED',
+          reference: t.reference || 'P2P_TRANSFER',
+          description: t.description || (isSender ? `Transfer sent to @${t.toUsername}` : `Transfer received from @${t.fromUsername}`),
+          fromUser: t.fromUsername || user.username,
+          toUser: t.toUsername || 'User',
+          createdAt: t.createdAt,
+          raw: t
+        };
+      });
+  }, [rawTransactions, user]);
+
   // 4. Combined All Activity Timeline
   const allActivityList = useMemo(() => {
-    const combined = [...depositsList, ...withdrawalsList, ...gameBetsList];
+    const combined = [...depositsList, ...withdrawalsList, ...transfersList, ...gameBetsList];
     return combined.sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
-  }, [depositsList, withdrawalsList, gameBetsList]);
+  }, [depositsList, withdrawalsList, transfersList, gameBetsList]);
 
   // Determine current active list based on tab
   const currentList = useMemo(() => {
     let list = [];
     if (activeTab === 'DEPOSITS') list = depositsList;
     else if (activeTab === 'WITHDRAWALS') list = withdrawalsList;
+    else if (activeTab === 'TRANSFERS') list = transfersList;
     else if (activeTab === 'GAMES') list = gameBetsList;
     else list = allActivityList;
 
@@ -312,6 +344,16 @@ export default function BalanceHistory({ initialTab = 'ALL', onNavigate }) {
           >
             <ArrowDownToLine className="w-3.5 h-3.5 shrink-0" />
             <span>Deposit</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsTransferModalOpen(true)}
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center space-x-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl text-xs font-black shadow-md shadow-amber-500/20 border border-amber-400/30 transition-all hover:scale-105"
+            title="Transfer Points"
+          >
+            <ArrowLeftRight className="w-3.5 h-3.5 shrink-0" />
+            <span>Transfer</span>
           </button>
 
           <button
@@ -417,6 +459,7 @@ export default function BalanceHistory({ initialTab = 'ALL', onNavigate }) {
           {[
             { id: 'ALL', label: 'All Activity', count: allActivityList.length, icon: History },
             { id: 'DEPOSITS', label: 'Deposits (+)', count: depositsList.length, icon: ArrowDownToLine },
+            { id: 'TRANSFERS', label: 'P2P Transfers', count: transfersList.length, icon: ArrowLeftRight },
             { id: 'WITHDRAWALS', label: 'Withdrawals (-)', count: withdrawalsList.length, icon: ArrowUpFromLine },
             { id: 'GAMES', label: 'Game Bets & Wins', count: gameBetsList.length, icon: Gamepad2 }
           ].map((tab) => {
@@ -1088,6 +1131,13 @@ export default function BalanceHistory({ initialTab = 'ALL', onNavigate }) {
         onClose={() => setIsWithdrawModalOpen(false)}
         currentBalance={currentBalance}
         onOpenDeposit={() => setIsDepositModalOpen(true)}
+      />
+
+      {/* Transfer Modal */}
+      <TransferModal
+        isOpen={isTransferModalOpen}
+        onClose={() => setIsTransferModalOpen(false)}
+        currentBalance={currentBalance}
       />
     </div>
   );

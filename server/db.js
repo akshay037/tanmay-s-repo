@@ -82,7 +82,7 @@ function initDb() {
       from_account_id INTEGER NOT NULL REFERENCES point_accounts(id),
       to_account_id INTEGER NOT NULL REFERENCES point_accounts(id),
       amount INTEGER NOT NULL CHECK(amount > 0),
-      transaction_type TEXT NOT NULL CHECK(transaction_type IN ('SUPER_ADMIN_MINT', 'ADMIN_ALLOCATION', 'USER_ALLOCATION', 'ADMIN_REVERSAL', 'USER_REVERSAL', 'USER_WITHDRAWAL', 'ADMIN_WITHDRAWAL')),
+      transaction_type TEXT NOT NULL CHECK(transaction_type IN ('SUPER_ADMIN_MINT', 'ADMIN_ALLOCATION', 'USER_ALLOCATION', 'ADMIN_REVERSAL', 'USER_REVERSAL', 'USER_WITHDRAWAL', 'ADMIN_WITHDRAWAL', 'USER_TRANSFER')),
       status TEXT NOT NULL DEFAULT 'COMPLETED' CHECK(status IN ('COMPLETED', 'FAILED', 'REVERSED')),
       from_balance_before INTEGER NOT NULL,
       from_balance_after INTEGER NOT NULL,
@@ -96,10 +96,10 @@ function initDb() {
     );
   `);
 
-  // Migrate point_transactions if USER_WITHDRAWAL is not in existing CHECK constraint
+  // Migrate point_transactions if USER_TRANSFER is not in existing CHECK constraint
   try {
     const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='point_transactions'").get();
-    if (tableInfo && tableInfo.sql && !tableInfo.sql.includes('USER_WITHDRAWAL')) {
+    if (tableInfo && tableInfo.sql && !tableInfo.sql.includes('USER_TRANSFER')) {
       db.pragma('foreign_keys = OFF');
       db.transaction(() => {
         db.exec(`
@@ -109,7 +109,7 @@ function initDb() {
             from_account_id INTEGER NOT NULL REFERENCES point_accounts(id),
             to_account_id INTEGER NOT NULL REFERENCES point_accounts(id),
             amount INTEGER NOT NULL CHECK(amount > 0),
-            transaction_type TEXT NOT NULL CHECK(transaction_type IN ('SUPER_ADMIN_MINT', 'ADMIN_ALLOCATION', 'USER_ALLOCATION', 'ADMIN_REVERSAL', 'USER_REVERSAL', 'USER_WITHDRAWAL', 'ADMIN_WITHDRAWAL')),
+            transaction_type TEXT NOT NULL CHECK(transaction_type IN ('SUPER_ADMIN_MINT', 'ADMIN_ALLOCATION', 'USER_ALLOCATION', 'ADMIN_REVERSAL', 'USER_REVERSAL', 'USER_WITHDRAWAL', 'ADMIN_WITHDRAWAL', 'USER_TRANSFER')),
             status TEXT NOT NULL DEFAULT 'COMPLETED' CHECK(status IN ('COMPLETED', 'FAILED', 'REVERSED')),
             from_balance_before INTEGER NOT NULL,
             from_balance_after INTEGER NOT NULL,
@@ -135,6 +135,23 @@ function initDb() {
   } catch (migErr) {
     console.error('Migration error on point_transactions table:', migErr);
   }
+
+  // User P2P Transfers table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_transfers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      transfer_code TEXT UNIQUE NOT NULL,
+      sender_id INTEGER NOT NULL REFERENCES users(id),
+      receiver_id INTEGER NOT NULL REFERENCES users(id),
+      amount INTEGER NOT NULL CHECK(amount > 0),
+      note TEXT NULL,
+      transaction_id TEXT NOT NULL REFERENCES point_transactions(transaction_id),
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_user_transfers_sender ON user_transfers(sender_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_user_transfers_receiver ON user_transfers(receiver_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_user_transfers_code ON user_transfers(transfer_code);
+  `);
 
 
   // Point requests table

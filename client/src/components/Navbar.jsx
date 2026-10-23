@@ -4,11 +4,12 @@ import { logout } from '../store/authSlice';
 import NotificationBell from './NotificationBell';
 import Badge from './Badge';
 import Modal from './Modal';
-import { LogOut, User, Settings, Coins, ShieldCheck, Plus, Sparkles, AlertCircle, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
+import { LogOut, User, Settings, Coins, ShieldCheck, Plus, Sparkles, AlertCircle, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight } from 'lucide-react';
 import { useGetMeQuery, useMintPointsMutation } from '../store/apiSlice';
 import { buildTelegramWithdrawUrl } from '../utils/telegram';
 import NoPointsNotificationModal from './NoPointsNotificationModal';
 import WithdrawModal from './WithdrawModal';
+import TransferModal from './TransferModal';
 import logoImg from '../assets/logo.png';
 
 export default function Navbar({ onToggleSidebar, onNavigate }) {
@@ -22,6 +23,7 @@ export default function Navbar({ onToggleSidebar, onNavigate }) {
   const [isMintModalOpen, setIsMintModalOpen] = useState(false);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [mintAmount, setMintAmount] = useState('');
   const [mintReason, setMintReason] = useState('');
   const [mintError, setMintError] = useState('');
@@ -188,30 +190,29 @@ export default function Navbar({ onToggleSidebar, onNavigate }) {
               {isProfileMenuOpen && (
                 <ul
                   tabIndex={-1}
-                  className="menu menu-sm dropdown-content bg-white border-2 border-red-200 rounded-2xl shadow-2xl z-[100] mt-2.5 w-56 p-2 absolute right-0 top-full divide-y divide-red-100 animate-fadeIn text-slate-800"
+                  className="menu menu-sm dropdown-content bg-white border-2 border-red-200 rounded-2xl shadow-2xl z-[100] mt-2.5 w-60 p-2 absolute right-0 top-full divide-y divide-red-100 animate-fadeIn text-slate-800"
                 >
+                  <li className="p-2 mb-1 bg-red-50/60 rounded-xl">
+                    <p className="text-xs font-semibold text-slate-900 truncate">
+                      <span className="font-black">Name :</span> {user?.name || user?.username}
+                    </p>
+                    <p className="text-[11px] font-semibold text-red-700 truncate">
+                      <span className="font-black">User ID :</span> {user?.username}
+                    </p>
+                  </li>
 
-                <li className="p-2 mb-1 bg-red-50/60 rounded-xl">
-                  <p className="text-xs font-semibold text-slate-900 truncate">
-                    <span className="font-black">Name :</span> {user?.name || user?.username}
-                  </p>
-
-                  <p className="text-[11px] font-semibold text-red-700 truncate">
-                    <span className="font-black">User ID :</span> {user?.username}
-                  </p>
-                </li>
-
-                  {/* <li className="pt-1">
+                  {/* Transfer Points Button (P2P Transfer) */}
+                  <li className="pt-1">
                     <button
                       type="button"
                       onClick={() => {
                         setIsProfileMenuOpen(false);
-                        if (onNavigate) onNavigate('profile');
+                        setIsTransferModalOpen(true);
                       }}
-                      className="w-full flex items-center space-x-2 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-red-50 hover:text-red-700 rounded-xl transition-colors cursor-pointer group"
+                      className="w-full flex items-center space-x-2.5 px-3 py-2 text-xs font-bold text-amber-900 hover:bg-amber-50 hover:text-amber-800 rounded-xl transition-colors cursor-pointer group"
                     >
-                      <Settings className="w-4 h-4 text-slate-400 group-hover:text-red-600 transition-colors" />
-                      <span>Settings</span>
+                      <ArrowLeftRight className="w-4 h-4 text-amber-600 group-hover:scale-110 transition-transform" />
+                      <span>Transfer Points</span>
                     </button>
                   </li>
 
@@ -222,12 +223,12 @@ export default function Navbar({ onToggleSidebar, onNavigate }) {
                         setIsProfileMenuOpen(false);
                         handleLogout();
                       }}
-                      className="w-full flex items-center space-x-2 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl transition-colors cursor-pointer group"
+                      className="w-full flex items-center space-x-2.5 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl transition-colors cursor-pointer group"
                     >
                       <LogOut className="w-4 h-4 text-rose-500 group-hover:rotate-12 transition-transform" />
                       <span>Logout</span>
                     </button>
-                  </li> */}
+                  </li>
                 </ul>
               )}
             </div>
@@ -326,6 +327,12 @@ export default function Navbar({ onToggleSidebar, onNavigate }) {
         onClose={() => setIsWithdrawModalOpen(false)}
         currentBalance={currentBalance}
         onOpenDeposit={() => setIsDepositModalOpen(true)}
+      />
+
+      <TransferModal
+        isOpen={isTransferModalOpen}
+        onClose={() => setIsTransferModalOpen(false)}
+        currentBalance={currentBalance}
       />
     </>
   );

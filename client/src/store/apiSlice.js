@@ -238,6 +238,25 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Point', 'Auth', 'Admin', 'User', 'Transaction', 'Report', 'Audit']
     }),
+    verifyRecipient: builder.mutation({
+      query: (data) => ({
+        url: '/points/verify-recipient',
+        method: 'POST',
+        body: data
+      })
+    }),
+    userTransfer: builder.mutation({
+      query: (data) => ({
+        url: '/points/user-transfer',
+        method: 'POST',
+        body: data
+      }),
+      invalidatesTags: ['Point', 'Auth', 'Transaction', 'Report', 'Notification', 'User']
+    }),
+    getMyTransfers: builder.query({
+      query: () => '/points/my-transfers',
+      providesTags: ['Point', 'Transaction']
+    }),
 
     // Transactions Ledger Endpoints
     getTransactions: builder.query({
@@ -417,5 +436,8 @@ export const {
   usePlaceLottoBetMutation,
   useGetLottoHistoryQuery,
   useGetMyLottoBetsQuery,
-  useRefillLottoDemoMutation
+  useRefillLottoDemoMutation,
+  useVerifyRecipientMutation,
+  useUserTransferMutation,
+  useGetMyTransfersQuery
 } = apiSlice;
