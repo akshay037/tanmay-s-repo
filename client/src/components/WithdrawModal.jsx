@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import Modal from './Modal';
 import { useGetMeQuery, useRequestUserWithdrawalMutation } from '../store/apiSlice';
-import { ArrowUpFromLine, Coins, AlertCircle, ArrowDownToLine, CheckCircle2, Copy, Check, Send, ExternalLink, ShieldCheck, Loader2 } from 'lucide-react';
+import { ArrowUpFromLine, Coins, AlertCircle, ArrowDownToLine, CheckCircle2, Copy, Check, Send, ExternalLink, ShieldCheck } from 'lucide-react';
 import { buildTelegramWithdrawUrl } from '../utils/telegram';
+
+const PRESET_AMOUNTS = [500, 1000, 2500, 5000];
 
 export default function WithdrawModal({
   isOpen,
@@ -14,7 +16,10 @@ export default function WithdrawModal({
   const [requestWithdrawal, { isLoading: isSubmitting }] = useRequestUserWithdrawalMutation();
 
   const liveBalance = meData?.pointAccount?.balance ?? (meData?.balance !== undefined ? meData.balance : currentBalance);
-  const [amount, setAmount] = useState('');
+  const [requestedAmount, setRequestedAmount] = useState(1000);
+  const [isCustom, setIsCustom] = useState(false);
+  const [customAmount, setCustomAmount] = useState('');
+  const [userNote, setUserNote] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [submittedData, setSubmittedData] = useState(null);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -23,36 +28,43 @@ export default function WithdrawModal({
     if (!isOpen) {
       setSubmittedData(null);
       setSubmitError('');
-      setAmount('');
       setCopiedCode(false);
-    } else {
-      refetchMe();
+      return;
     }
-  }, [isOpen]);
+    if (liveBalance > 0 && liveBalance < 1000) {
+      setRequestedAmount(liveBalance);
+      setIsCustom(true);
+      setCustomAmount(String(liveBalance));
+    } else {
+      setRequestedAmount(Math.min(liveBalance, 1000));
+      setIsCustom(false);
+      setCustomAmount('');
+    }
+  }, [isOpen, liveBalance]);
 
   if (!isOpen) return null;
 
-  const withdrawAmount = parseInt(amount, 10);
+  const withdrawAmount = isCustom ? parseInt(customAmount, 10) : requestedAmount;
   const isZeroBalance = liveBalance <= 0;
-  const isTooHigh = !isNaN(withdrawAmount) && withdrawAmount > liveBalance;
+  const isTooHigh = withdrawAmount > liveBalance;
   const isValidAmount = Number.isInteger(withdrawAmount) && withdrawAmount > 0 && !isTooHigh;
   const remainingBalance = Math.max(0, liveBalance - (isValidAmount ? withdrawAmount : 0));
 
   const adminName = meData?.owningAdmin?.username || meData?.owningAdmin?.name || 'Assigned Admin';
 
   const handleAllIn = () => {
-    if (liveBalance <= 0) return;
-    setAmount(String(liveBalance));
+    setIsCustom(true);
+    setCustomAmount(String(liveBalance));
   };
 
-  const handleWithdraw = async (e) => {
-    if (e) e.preventDefault();
+  const handleWithdraw = async () => {
     if (!isValidAmount || isSubmitting) return;
     setSubmitError('');
 
     try {
       const res = await requestWithdrawal({
-        amount: withdrawAmount
+        amount: withdrawAmount,
+        note: userNote.trim() || undefined
       }).unwrap();
 
       const requestCode = res.requestCode;
@@ -67,13 +79,14 @@ export default function WithdrawModal({
         meData,
         currentBalance: liveBalance,
         requestedAmount: withdrawAmount,
-        requestCode
+        requestCode,
+        userNote: userNote.trim() || undefined
       });
 
       window.open(tgUrl, '_blank', 'noopener,noreferrer');
       refetchMe();
     } catch (err) {
-      const errMsg = err?.data?.error || (err?.status === 404 ? 'Server route not loaded. Please restart your backend server.' : err?.message) || 'Failed to submit withdrawal request.';
+      const errMsg = err?.data?.error || (err?.status === 404 ? 'Server route not loaded. Please restart backend server.' : err?.message) || 'Failed to submit withdrawal request.';
       setSubmitError(errMsg);
     }
   };
@@ -161,7 +174,8 @@ export default function WithdrawModal({
                   meData,
                   currentBalance: liveBalance,
                   requestedAmount: submittedData.amount,
-                  requestCode: submittedData.requestCode
+                  requestCode: submittedData.requestCode,
+                  userNote: userNote.trim() || undefined
                 })}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -183,7 +197,7 @@ export default function WithdrawModal({
           </div>
         ) : (
           /* FORM VIEW */
-          <form onSubmit={handleWithdraw} className="space-y-4">
+          <>
             <div className="text-center pt-2 pb-1">
               <div className="relative inline-block">
                 <div className="w-20 h-20 mx-auto rounded-3xl bg-red-50 border-2 border-red-200 flex items-center justify-center shadow-md">
@@ -198,7 +212,7 @@ export default function WithdrawModal({
                 Request Point Withdrawal
               </h3>
               <p className="text-xs text-slate-500 font-semibold mt-1">
-                Your request will be sent to your Admin for approval and opened on Telegram
+                Your request will be sent to the Admin Panel for approval and opened on Telegram
               </p>
             </div>
 
@@ -255,73 +269,118 @@ export default function WithdrawModal({
             ) : (
               <div className="space-y-3 bg-red-50/40 p-4 rounded-2xl border-2 border-red-100">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-700">
+                  <label className="block text-[11px] font-bold text-slate-600">
                     Amount of Points to Withdraw:
                   </label>
                   <button
                     type="button"
                     onClick={handleAllIn}
-                    className="text-[10px] font-black uppercase tracking-wider text-red-600 hover:text-red-700 bg-red-100/70 hover:bg-red-100 px-2.5 py-1 rounded-lg transition-colors border border-red-200 shadow-sm"
+                    className="text-[10px] font-black uppercase tracking-wider text-red-600 hover:text-red-700 bg-red-100/70 hover:bg-red-100 px-2 py-0.5 rounded-md transition-colors"
                   >
                     Max (${liveBalance.toLocaleString()})
                   </button>
                 </div>
 
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="1"
-                    max={liveBalance}
-                    step="1"
-                    value={amount}
-                    onChange={(e) => {
-                      setAmount(e.target.value);
-                      setSubmitError('');
-                    }}
-                    placeholder="Enter points to withdraw..."
-                    className={`w-full pl-3.5 pr-16 py-2.5 text-sm font-mono font-bold rounded-xl border-2 outline-none transition-all ${
-                      isTooHigh
-                        ? 'border-rose-400 bg-rose-50/50 text-rose-900 focus:border-rose-500'
-                        : 'border-slate-200 bg-white text-slate-900 focus:border-red-500'
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {PRESET_AMOUNTS.map((amt) => {
+                    const disabled = amt > liveBalance;
+                    return (
+                      <button
+                        key={amt}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => {
+                          setIsCustom(false);
+                          setRequestedAmount(amt);
+                          setCustomAmount('');
+                        }}
+                        className={`py-2 rounded-xl text-xs font-mono font-black border-2 transition-all ${
+                          disabled
+                            ? 'opacity-40 cursor-not-allowed bg-slate-100 border-slate-200 text-slate-400'
+                            : !isCustom && requestedAmount === amt
+                            ? 'bg-red-600 text-white border-red-700 shadow-md ring-2 ring-red-400'
+                            : 'bg-white text-slate-700 hover:bg-red-50 border-red-200'
+                        }`}
+                      >
+                        ${amt >= 1000 ? `${amt / 1000}k` : amt}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setIsCustom(true)}
+                    className={`py-2 rounded-xl text-xs font-black border-2 transition-all ${
+                      isCustom
+                        ? 'bg-red-600 text-white border-red-700 shadow-md ring-2 ring-red-400'
+                        : 'bg-white text-slate-700 hover:bg-red-50 border-red-200'
                     }`}
-                  />
-                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 uppercase">
-                    Points
-                  </span>
+                  >
+                    Custom
+                  </button>
                 </div>
 
-                {isTooHigh && (
-                  <p className="text-[11px] text-red-600 font-bold">
-                    Amount exceeds your available balance of ${liveBalance.toLocaleString()}.
-                  </p>
+                {isCustom && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                      Custom Amount ($)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max={liveBalance}
+                      step="1"
+                      value={customAmount}
+                      onChange={(e) => setCustomAmount(e.target.value)}
+                      placeholder={`Max: ${liveBalance}`}
+                      className="w-full px-3 py-2.5 bg-white border-2 border-red-200 rounded-xl text-sm font-mono font-black text-red-700 placeholder-slate-400 focus:outline-none focus:border-red-500"
+                    />
+                    {isTooHigh && (
+                      <p className="text-[11px] text-red-600 font-bold mt-1">
+                        Amount exceeds your available balance of ${liveBalance.toLocaleString()}.
+                      </p>
+                    )}
+                  </div>
                 )}
+
+                {/* Optional note / payment details */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    USDT Address Details (Optional):
+                  </label>
+                  <input
+                    type="text"
+                    value={userNote}
+                    onChange={(e) => setUserNote(e.target.value)}
+                    maxLength={250}
+                    className="w-full px-3 py-2 bg-white border border-red-200 rounded-xl text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-red-500"
+                  />
+                </div>
               </div>
             )}
 
             <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2">
               {!isZeroBalance && (
                 <button
-                  type="submit"
+                  type="button"
                   disabled={!isValidAmount || isSubmitting}
+                  onClick={handleWithdraw}
                   className={`w-full sm:flex-1 px-4 py-3 text-xs font-black text-white rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 ${
                     isValidAmount && !isSubmitting
                       ? 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 hover:scale-[1.02]'
                       : 'bg-slate-300 cursor-not-allowed'
                   }`}
+                  title="Submit Withdrawal to Admin Panel & Telegram"
                 >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Submitting Request...</span>
-                    </>
-                  ) : (
-                    <>
-                      <ArrowUpFromLine className="w-3.5 h-3.5" />
-                      <span>
-                        Request ${isValidAmount ? withdrawAmount.toLocaleString() : 0} Points Withdrawal
-                      </span>
-                    </>
-                  )}
+                  <ArrowUpFromLine className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    {isSubmitting
+                      ? 'Submitting to Admin Panel...'
+                      : isValidAmount
+                      ? `Withdraw $${withdrawAmount.toLocaleString()} on Telegram & Portal`
+                      : isTooHigh
+                      ? 'Amount Exceeds Balance'
+                      : 'Enter valid amount'}
+                  </span>
                 </button>
               )}
 
@@ -330,10 +389,10 @@ export default function WithdrawModal({
                 onClick={onClose}
                 className="w-full sm:w-auto px-5 py-3 text-xs font-bold text-slate-700 hover:text-slate-900 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition-colors"
               >
-                Cancel
+                Close
               </button>
             </div>
-          </form>
+          </>
         )}
       </div>
     </Modal>
