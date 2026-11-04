@@ -155,6 +155,7 @@ router.get('/me', authenticateToken, (req, res) => {
     name: profile ? profile.name : user.username,
     email: profile ? profile.email : null,
     phone: profile ? profile.phone : null,
+    notes: profile ? profile.notes : null,
     balance: pointAccount.balance,
     owningAdmin: owningAdmin,
     pointAccount: {

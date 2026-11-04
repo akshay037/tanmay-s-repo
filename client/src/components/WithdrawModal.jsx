@@ -24,6 +24,10 @@ export default function WithdrawModal({
   const [submittedData, setSubmittedData] = useState(null);
   const [copiedCode, setCopiedCode] = useState(false);
 
+  // localStorage key scoped to this user so different users on the same browser don't share addresses
+  const userId = meData?.id;
+  const LS_KEY = userId ? `usdt_address_${userId}` : 'usdt_address';
+
   useEffect(() => {
     if (!isOpen) {
       setSubmittedData(null);
@@ -31,6 +35,9 @@ export default function WithdrawModal({
       setCopiedCode(false);
       return;
     }
+    // Pre-fill USDT address from localStorage (saved from previous withdrawal)
+    const saved = localStorage.getItem(LS_KEY) || '';
+    setUserNote(saved);
     if (liveBalance > 0 && liveBalance < 1000) {
       setRequestedAmount(liveBalance);
       setIsCustom(true);
@@ -40,7 +47,7 @@ export default function WithdrawModal({
       setIsCustom(false);
       setCustomAmount('');
     }
-  }, [isOpen, liveBalance]);
+  }, [isOpen, liveBalance, LS_KEY]);
 
   if (!isOpen) return null;
 
@@ -72,6 +79,13 @@ export default function WithdrawModal({
         requestCode,
         amount: withdrawAmount
       });
+
+      // Persist USDT address so it pre-fills next time the modal opens
+      if (userNote.trim()) {
+        localStorage.setItem(LS_KEY, userNote.trim());
+      } else {
+        localStorage.removeItem(LS_KEY);
+      }
 
       // Automatically launch Telegram in parallel
       const tgUrl = buildTelegramWithdrawUrl({
@@ -344,16 +358,36 @@ export default function WithdrawModal({
 
                 {/* Optional note / payment details */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                    USDT Address Details (Optional):
-                  </label>
-                  <input
-                    type="text"
-                    value={userNote}
-                    onChange={(e) => setUserNote(e.target.value)}
-                    maxLength={250}
-                    className="w-full px-3 py-2 bg-white border border-red-200 rounded-xl text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-red-500"
-                  />
+                  {(() => {
+                    const isSaved = !!localStorage.getItem(LS_KEY);
+                    return (
+                      <>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
+                          <span>USDT Address Details{!isSaved && ' (Optional)'}:</span>
+                          {isSaved && (
+                            <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-1">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                              Locked
+                            </span>
+                          )}
+                        </label>
+                        <input
+                          type="text"
+                          value={userNote}
+                          onChange={isSaved ? undefined : (e) => setUserNote(e.target.value)}
+                          readOnly={isSaved}
+                          placeholder="e.g. TRC20 / BEP20 wallet address"
+                          maxLength={250}
+                          className={isSaved ? 'w-full px-3 py-2 rounded-xl text-xs placeholder-slate-400 focus:outline-none border bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed' : 'w-full px-3 py-2 rounded-xl text-xs placeholder-slate-400 focus:outline-none border bg-white border-red-200 text-slate-700 focus:border-red-500'}
+                        />
+                        {isSaved && (
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            Address locked. Contact support to change your USDT address.
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             )}
