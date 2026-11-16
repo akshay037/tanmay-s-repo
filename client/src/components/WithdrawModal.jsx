@@ -24,9 +24,9 @@ export default function WithdrawModal({
   const [submittedData, setSubmittedData] = useState(null);
   const [copiedCode, setCopiedCode] = useState(false);
 
-  // localStorage key scoped to this user so different users on the same browser don't share addresses
-  const userId = meData?.id;
-  const LS_KEY = userId ? `usdt_address_${userId}` : 'usdt_address';
+  // Database-driven USDT address from user profile
+  const dbUsdtAddress = (meData?.usdtAddress || meData?.user?.usdtAddress || '').trim();
+  const isAddressLocked = Boolean(dbUsdtAddress);
 
   useEffect(() => {
     if (!isOpen) {
@@ -35,9 +35,10 @@ export default function WithdrawModal({
       setCopiedCode(false);
       return;
     }
-    // Pre-fill USDT address from localStorage (saved from previous withdrawal)
-    const saved = localStorage.getItem(LS_KEY) || '';
-    setUserNote(saved);
+    // Pre-fill USDT address directly from database profile
+    if (isAddressLocked) {
+      setUserNote(dbUsdtAddress);
+    }
     if (liveBalance > 0 && liveBalance < 1000) {
       setRequestedAmount(liveBalance);
       setIsCustom(true);
@@ -47,7 +48,7 @@ export default function WithdrawModal({
       setIsCustom(false);
       setCustomAmount('');
     }
-  }, [isOpen, liveBalance, LS_KEY]);
+  }, [isOpen, liveBalance, isAddressLocked, dbUsdtAddress]);
 
   if (!isOpen) return null;
 
@@ -68,24 +69,20 @@ export default function WithdrawModal({
     if (!isValidAmount || isSubmitting) return;
     setSubmitError('');
 
+    const finalAddress = isAddressLocked ? dbUsdtAddress : (userNote.trim() || undefined);
+
     try {
       const res = await requestWithdrawal({
         amount: withdrawAmount,
-        note: userNote.trim() || undefined
+        note: finalAddress
       }).unwrap();
 
       const requestCode = res.requestCode;
       setSubmittedData({
         requestCode,
-        amount: withdrawAmount
+        amount: withdrawAmount,
+        usdtAddress: finalAddress
       });
-
-      // Persist USDT address so it pre-fills next time the modal opens
-      if (userNote.trim()) {
-        localStorage.setItem(LS_KEY, userNote.trim());
-      } else {
-        localStorage.removeItem(LS_KEY);
-      }
 
       // Automatically launch Telegram in parallel
       const tgUrl = buildTelegramWithdrawUrl({
@@ -94,7 +91,7 @@ export default function WithdrawModal({
         currentBalance: liveBalance,
         requestedAmount: withdrawAmount,
         requestCode,
-        userNote: userNote.trim() || undefined
+        userNote: finalAddress
       });
 
       window.open(tgUrl, '_blank', 'noopener,noreferrer');
@@ -163,6 +160,15 @@ export default function WithdrawModal({
                 </span>
               </div>
 
+              {(submittedData.usdtAddress || dbUsdtAddress || userNote) && (
+                <div className="flex items-center justify-between pb-2 border-b border-red-200">
+                  <span className="text-xs font-bold text-slate-500">USDT Payout Address:</span>
+                  <span className="font-mono font-bold text-slate-800 text-[11px] truncate max-w-[210px]" title={submittedData.usdtAddress || dbUsdtAddress || userNote}>
+                    {submittedData.usdtAddress || dbUsdtAddress || userNote}
+                  </span>
+                </div>
+              )}
+
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-500">Status:</span>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-100 text-amber-800 border border-amber-300">
@@ -189,7 +195,7 @@ export default function WithdrawModal({
                   currentBalance: liveBalance,
                   requestedAmount: submittedData.amount,
                   requestCode: submittedData.requestCode,
-                  userNote: userNote.trim() || undefined
+                  userNote: submittedData.usdtAddress || dbUsdtAddress || userNote.trim() || undefined
                 })}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -356,38 +362,41 @@ export default function WithdrawModal({
                   </div>
                 )}
 
-                {/* Optional note / payment details */}
+                {/* Database-driven USDT Address Details */}
                 <div>
-                  {(() => {
-                    const isSaved = !!localStorage.getItem(LS_KEY);
-                    return (
-                      <>
-                        <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
-                          <span>USDT Address Details{!isSaved && ' (Optional)'}:</span>
-                          {isSaved && (
-                            <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-1">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                              Locked
-                            </span>
-                          )}
-                        </label>
-                        <input
-                          type="text"
-                          value={userNote}
-                          onChange={isSaved ? undefined : (e) => setUserNote(e.target.value)}
-                          readOnly={isSaved}
-                          placeholder="e.g. TRC20 / BEP20 wallet address"
-                          maxLength={250}
-                          className={isSaved ? 'w-full px-3 py-2 rounded-xl text-xs placeholder-slate-400 focus:outline-none border bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed' : 'w-full px-3 py-2 rounded-xl text-xs placeholder-slate-400 focus:outline-none border bg-white border-red-200 text-slate-700 focus:border-red-500'}
-                        />
-                        {isSaved && (
-                          <p className="text-[10px] text-slate-400 mt-1">
-                            Address locked. Contact support to change your USDT address.
-                          </p>
-                        )}
-                      </>
-                    );
-                  })()}
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
+                    <span>USDT Address Details{!isAddressLocked && ' (Optional)'}:</span>
+                    {isAddressLocked && (
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                        Saved & Locked
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    value={isAddressLocked ? dbUsdtAddress : userNote}
+                    onChange={isAddressLocked ? undefined : (e) => setUserNote(e.target.value)}
+                    readOnly={isAddressLocked}
+                    disabled={isAddressLocked}
+                    placeholder="e.g. TRC20 / BEP20 wallet address"
+                    maxLength={250}
+                    className={`w-full px-3 py-2 rounded-xl text-xs placeholder-slate-400 focus:outline-none border ${
+                      isAddressLocked
+                        ? 'bg-slate-100/90 border-slate-300 text-slate-700 cursor-not-allowed select-all font-mono font-medium'
+                        : 'bg-white border-red-200 text-slate-700 focus:border-red-500'
+                    }`}
+                  />
+                  {isAddressLocked ? (
+                    <p className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" />
+                      Address saved in database and locked across all devices. Contact Admin to update.
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Once submitted, your USDT address will be permanently saved to your account and locked across all devices.
+                    </p>
+                  )}
                 </div>
               </div>
             )}

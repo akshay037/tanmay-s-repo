@@ -23,6 +23,7 @@ router.get('/', requireRole('SUPER_ADMIN', 'ADMIN'), (req, res) => {
       up.email,
       up.phone,
       up.notes,
+      up.usdt_address as usdtAddress,
       up.admin_id as adminId,
       adm_usr.username as adminUsername,
       adm_prof.name as adminName,
@@ -71,6 +72,7 @@ router.get('/:id', requireRole('SUPER_ADMIN', 'ADMIN', 'USER'), (req, res) => {
       up.email,
       up.phone,
       up.notes,
+      up.usdt_address as usdtAddress,
       up.admin_id as adminId,
       adm_usr.username as adminUsername,
       adm_prof.name as adminName,
@@ -179,7 +181,7 @@ router.post('/', requireRole('SUPER_ADMIN', 'ADMIN'), (req, res) => {
 // EDIT USER
 router.put('/:id', requireRole('SUPER_ADMIN', 'ADMIN'), (req, res) => {
   const targetUserId = parseInt(req.params.id, 10);
-  const { name, email, phone, notes } = req.body;
+  const { name, email, phone, notes, usdtAddress } = req.body;
 
   if (!name) {
     return res.status(400).json({ error: 'Full name is required.' });
@@ -195,11 +197,12 @@ router.put('/:id', requireRole('SUPER_ADMIN', 'ADMIN'), (req, res) => {
     return res.status(403).json({ error: 'Access denied. You can only edit users belonging to your Admin account.' });
   }
 
+    const newUsdtAddress = usdtAddress !== undefined ? (usdtAddress ? usdtAddress.trim() : null) : profile.usdt_address;
   db.prepare(`
     UPDATE user_profiles
-    SET name = ?, email = ?, phone = ?, notes = ?
+    SET name = ?, email = ?, phone = ?, notes = ?, usdt_address = ?
     WHERE user_id = ?
-  `).run(name.trim(), email ? email.trim() : null, phone ? phone.trim() : null, notes ? notes.trim() : null, targetUserId);
+  `).run(name.trim(), email ? email.trim() : null, phone ? phone.trim() : null, notes ? notes.trim() : null, newUsdtAddress, targetUserId);
 
   const user = db.prepare('SELECT username FROM users WHERE id = ?').get(targetUserId);
 
@@ -209,7 +212,7 @@ router.put('/:id', requireRole('SUPER_ADMIN', 'ADMIN'), (req, res) => {
     targetId: targetUserId,
     targetName: user ? user.username : 'USER',
     oldValue: profile,
-    newValue: { name, email, phone, notes }
+    newValue: { name, email, phone, notes, usdtAddress: newUsdtAddress }
   });
 
   return res.json({ message: 'User details updated successfully.' });
@@ -356,6 +359,29 @@ router.post('/:id/transfer', requireRole('SUPER_ADMIN'), (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
+});
+
+
+// USER SETS OR LOCKS USDT ADDRESS
+router.post('/me/usdt-address', (req, res) => {
+  const { usdtAddress } = req.body;
+  if (!usdtAddress || !String(usdtAddress).trim()) {
+    return res.status(400).json({ error: 'USDT Address is required.' });
+  }
+  const profile = db.prepare('SELECT usdt_address FROM user_profiles WHERE user_id = ?').get(req.user.id);
+  if (profile && profile.usdt_address && profile.usdt_address.trim()) {
+    return res.status(400).json({ error: 'USDT Address is already set and locked for this account. Please contact your Admin to update it.' });
+  }
+  const cleanAddress = String(usdtAddress).trim();
+  db.prepare('UPDATE user_profiles SET usdt_address = ? WHERE user_id = ?').run(cleanAddress, req.user.id);
+  logAudit(req, {
+    action: 'SET_USER_USDT_ADDRESS',
+    targetType: 'USER',
+    targetId: req.user.id,
+    targetName: req.user.username,
+    newValue: { usdtAddress: cleanAddress }
+  });
+  return res.json({ message: 'USDT Address saved and locked successfully.', usdtAddress: cleanAddress });
 });
 
 module.exports = router;

@@ -109,7 +109,7 @@ export function buildTelegramWithdrawUrl(options = {}) {
     '━━━━━━━━━━━━━━━━━━━━━',
     requestCode ? `🔖 Request Code: ${requestCode}` : null,
     requestCode ? '⚡ Status: Pending Admin Approval on Portal' : null,
-    `🆔 User ID: ${userId}`,
+    // `🆔 User ID: ${userId}`,
     `👤 Username: @${username}`,
     `🏷️ Name: ${fullName}`,
     `💰 Current Balance: $${numBalance.toLocaleString()}`,
@@ -135,7 +135,7 @@ export function buildTelegramSupportUrl(options = {}) {
   const message = [
     '💬 CHAT WITH CUSTOMER CARE',
     '━━━━━━━━━━━━━━━━━━━━━',
-    `🆔 User ID: ${userId}`,
+    // `🆔 User ID: ${userId}`,
     `👤 Username: @${username}`,
     `🏷️ Name: ${fullName}`,
     `💰 Current Balance: $${Number(balance).toLocaleString()}`,

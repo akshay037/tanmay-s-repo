@@ -114,6 +114,7 @@ router.post('/login', loginLimiter, (req, res) => {
       name: profile ? profile.name : user.username,
       email: profile ? profile.email : null,
       phone: profile ? profile.phone : null,
+      usdtAddress: profile ? (profile.usdt_address || null) : null,
       adminId: adminId,
       balance: pointAccount.balance
     }
@@ -156,6 +157,7 @@ router.get('/me', authenticateToken, (req, res) => {
     email: profile ? profile.email : null,
     phone: profile ? profile.phone : null,
     notes: profile ? profile.notes : null,
+    usdtAddress: profile ? (profile.usdt_address || null) : null,
     balance: pointAccount.balance,
     owningAdmin: owningAdmin,
     pointAccount: {

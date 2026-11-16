@@ -394,9 +394,10 @@ const handleUserWithdrawal = (req, res) => {
     });
   }
 
-  // 2. Identify assigned Admin
+  // 2. Identify assigned Admin and check saved USDT Address in Database
   let adminId = null;
-  const profile = db.prepare('SELECT admin_id FROM user_profiles WHERE user_id = ?').get(req.user.id);
+  let effectiveUsdtAddress = null;
+  const profile = db.prepare('SELECT admin_id, usdt_address FROM user_profiles WHERE user_id = ?').get(req.user.id);
   if (profile && profile.admin_id) {
     adminId = profile.admin_id;
   } else {
@@ -404,6 +405,23 @@ const handleUserWithdrawal = (req, res) => {
     const defaultAdmin = db.prepare("SELECT id FROM users WHERE role = 'ADMIN' LIMIT 1").get();
     const superAdmin = db.prepare("SELECT id FROM users WHERE role = 'SUPER_ADMIN' LIMIT 1").get();
     adminId = defaultAdmin?.id || superAdmin?.id || req.user.id;
+  }
+
+  // Database-driven USDT Address enforcement (Permanent & Locked across all devices)
+  if (profile && profile.usdt_address && profile.usdt_address.trim()) {
+    // Already in database: permanently lock to it (prevent client tampering)
+    effectiveUsdtAddress = profile.usdt_address.trim();
+  } else if (note && String(note).trim()) {
+    // First time entering USDT address: save permanently to user_profiles table in DB
+    effectiveUsdtAddress = String(note).trim();
+    db.prepare('UPDATE user_profiles SET usdt_address = ? WHERE user_id = ?').run(effectiveUsdtAddress, req.user.id);
+    logAudit(req, {
+      action: 'SET_USER_USDT_ADDRESS',
+      targetType: 'USER',
+      targetId: req.user.id,
+      targetName: req.user.username,
+      newValue: { usdtAddress: effectiveUsdtAddress }
+    });
   }
 
   // 3. Prevent excessive spamming (max 5 pending)
@@ -417,7 +435,7 @@ const handleUserWithdrawal = (req, res) => {
   const resDb = db.prepare(`
     INSERT INTO user_withdrawal_requests (request_code, user_id, admin_id, amount, user_note, status)
     VALUES (?, ?, ?, ?, ?, 'PENDING')
-  `).run(requestCode, req.user.id, adminId, parsedAmount, note ? String(note).trim() : null);
+  `).run(requestCode, req.user.id, adminId, parsedAmount, effectiveUsdtAddress);
 
   logAudit(req, {
     action: 'CREATE_USER_WITHDRAWAL_REQUEST',
@@ -450,6 +468,7 @@ const handleUserWithdrawal = (req, res) => {
     requestCode,
     amount: parsedAmount,
     status: 'PENDING',
+    usdtAddress: effectiveUsdtAddress,
     id: resDb.lastInsertRowid
   });
 };

@@ -42,6 +42,7 @@ function initDb() {
       email TEXT NULL,
       phone TEXT NULL,
       notes TEXT NULL,
+      usdt_address TEXT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
   `);
@@ -306,6 +307,29 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_id);
     CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read);
   `);
+
+  // Migration: Ensure usdt_address exists on user_profiles
+  try {
+    const userProfileCols = db.prepare("PRAGMA table_info(user_profiles)").all();
+    if (!userProfileCols.some(col => col.name === 'usdt_address')) {
+      db.exec("ALTER TABLE user_profiles ADD COLUMN usdt_address TEXT NULL");
+      console.log('Migration: Added usdt_address column to user_profiles table.');
+    }
+
+    // Backfill usdt_address from previous user_withdrawal_requests if user_profiles.usdt_address is null
+    const usersWithoutUsdt = db.prepare("SELECT user_id FROM user_profiles WHERE usdt_address IS NULL OR TRIM(usdt_address) = ''").all();
+    for (const u of usersWithoutUsdt) {
+      const lastWth = db.prepare(
+        "SELECT user_note FROM user_withdrawal_requests WHERE user_id = ? AND user_note IS NOT NULL AND TRIM(user_note) != '' ORDER BY id DESC LIMIT 1"
+      ).get(u.user_id);
+      if (lastWth && lastWth.user_note && lastWth.user_note.trim()) {
+        db.prepare("UPDATE user_profiles SET usdt_address = ? WHERE user_id = ?").run(lastWth.user_note.trim(), u.user_id);
+        console.log(`Migration: Backfilled USDT address for user_id ${u.user_id} from previous withdrawal request.`);
+      }
+    }
+  } catch (migErr) {
+    console.error('Migration error on user_profiles table:', migErr);
+  }
 
   seedDefaultSuperAdmin();
 }
