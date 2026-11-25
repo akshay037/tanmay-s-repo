@@ -4,13 +4,14 @@ import {
   useCreateUserMutation,
   useUpdateUserMutation,
   useToggleUserStatusMutation,
-  useResetUserPasswordMutation
+  useResetUserPasswordMutation,
+  useDeleteUserMutation
 } from '../../store/apiSlice';
 import Modal from '../../components/Modal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import Badge from '../../components/Badge';
 import ExportButtons from '../../components/ExportButtons';
-import { Users, Plus, Search, Edit2, Key, UserCheck, UserX, Coins, ArrowUpFromLine, AlertCircle } from 'lucide-react';
+import { Users, Plus, Search, Edit2, Key, UserCheck, UserX, Coins, ArrowUpFromLine, AlertCircle, Trash2 } from 'lucide-react';
 
 export default function UserManagement({ onSelectUserForDistribution }) {
   const { data: users = [], isLoading } = useGetUsersQuery();
@@ -19,6 +20,7 @@ export default function UserManagement({ onSelectUserForDistribution }) {
   const [updateUser, { isLoading: isUpdating }] = useUpdateUserMutation();
   const [toggleStatus, { isLoading: isToggling }] = useToggleUserStatusMutation();
   const [resetPassword, { isLoading: isResetting }] = useResetUserPasswordMutation();
+  const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -28,11 +30,12 @@ export default function UserManagement({ onSelectUserForDistribution }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, user: null, newStatus: '' });
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, user: null });
 
   // Forms
-  const [createForm, setCreateForm] = useState({ username: '', password: '', name: '', email: '', phone: '', notes: '' });
+  const [createForm, setCreateForm] = useState({ username: '', password: '', transferPassword: '', name: '', email: '', phone: '', notes: '' });
   const [editForm, setEditForm] = useState({ id: null, name: '', email: '', phone: '', notes: '' });
-  const [resetForm, setResetForm] = useState({ id: null, username: '', newPassword: '' });
+  const [resetForm, setResetForm] = useState({ id: null, username: '', resetType: 'LOGIN', newPassword: '', newTransferPassword: '' });
 
   const [formError, setFormError] = useState('');
 
@@ -51,7 +54,7 @@ export default function UserManagement({ onSelectUserForDistribution }) {
     try {
       await createUser(createForm).unwrap();
       setIsCreateOpen(false);
-      setCreateForm({ username: '', password: '', name: '', email: '', phone: '', notes: '' });
+      setCreateForm({ username: '', password: '', transferPassword: '', name: '', email: '', phone: '', notes: '' });
     } catch (err) {
       setFormError(err?.data?.error || 'Failed to create User account.');
     }
@@ -89,6 +92,16 @@ export default function UserManagement({ onSelectUserForDistribution }) {
     }
   };
 
+  const handleDeleteSubmit = async () => {
+    if (!deleteDialog.user) return;
+    try {
+      await deleteUser(deleteDialog.user.id).unwrap();
+      setDeleteDialog({ isOpen: false, user: null });
+    } catch (err) {
+      alert(err?.data?.error || 'Failed to delete user.');
+    }
+  };
+
   const openEdit = (user) => {
     setEditForm({
       id: user.id,
@@ -105,7 +118,9 @@ export default function UserManagement({ onSelectUserForDistribution }) {
     setResetForm({
       id: user.id,
       username: user.username,
-      newPassword: ''
+      resetType: 'LOGIN',
+      newPassword: '',
+      newTransferPassword: ''
     });
     setFormError('');
     setIsResetOpen(true);
@@ -265,6 +280,13 @@ export default function UserManagement({ onSelectUserForDistribution }) {
                         >
                           {usr.status === 'ACTIVE' ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                         </button>
+                        <button
+                          onClick={() => setDeleteDialog({ isOpen: true, user: usr })}
+                          className="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 rounded-lg transition-colors"
+                          title="Delete User Account"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -297,7 +319,7 @@ export default function UserManagement({ onSelectUserForDistribution }) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Temporary Password *</label>
+            <label className="block text-xs font-semibold text-slate-300 mb-1">Temporary Login Password *</label>
             <input
               type="password"
               required
@@ -306,6 +328,18 @@ export default function UserManagement({ onSelectUserForDistribution }) {
               placeholder="Min 6 characters (Will force change on 1st login)"
               className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:border-indigo-500"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1">Temporary Transfer Password</label>
+            <input
+              type="password"
+              value={createForm.transferPassword}
+              onChange={(e) => setCreateForm({ ...createForm, transferPassword: e.target.value })}
+              placeholder="Min 6 characters (Will force change on 1st transfer)"
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:border-indigo-500"
+            />
+            <p className="text-[11px] text-slate-400 mt-1">Leave empty to use the same as login password.</p>
           </div>
 
           <div>
@@ -420,16 +454,72 @@ export default function UserManagement({ onSelectUserForDistribution }) {
         {formError && <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-lg">{formError}</div>}
         <form onSubmit={handleResetSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">New Temporary Password *</label>
-            <input
-              type="password"
-              required
-              value={resetForm.newPassword}
-              onChange={(e) => setResetForm({ ...resetForm, newPassword: e.target.value })}
-              placeholder="Enter new temp password"
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white"
-            />
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Select Which Password to Reset</label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setResetForm({ ...resetForm, resetType: 'LOGIN' })}
+                className={`py-1.5 px-2 text-xs rounded-lg font-semibold border transition-all ${
+                  resetForm.resetType === 'LOGIN'
+                    ? 'bg-indigo-600 border-indigo-500 text-white shadow-sm'
+                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                }`}
+              >
+                Login
+              </button>
+              <button
+                type="button"
+                onClick={() => setResetForm({ ...resetForm, resetType: 'TRANSFER' })}
+                className={`py-1.5 px-2 text-xs rounded-lg font-semibold border transition-all ${
+                  resetForm.resetType === 'TRANSFER'
+                    ? 'bg-indigo-600 border-indigo-500 text-white shadow-sm'
+                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                }`}
+              >
+                Transfer
+              </button>
+              <button
+                type="button"
+                onClick={() => setResetForm({ ...resetForm, resetType: 'BOTH' })}
+                className={`py-1.5 px-2 text-xs rounded-lg font-semibold border transition-all ${
+                  resetForm.resetType === 'BOTH'
+                    ? 'bg-indigo-600 border-indigo-500 text-white shadow-sm'
+                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                }`}
+              >
+                Both
+              </button>
+            </div>
           </div>
+
+          {(resetForm.resetType === 'LOGIN' || resetForm.resetType === 'BOTH') && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">New Temporary Login Password *</label>
+              <input
+                type="password"
+                required
+                value={resetForm.newPassword}
+                onChange={(e) => setResetForm({ ...resetForm, newPassword: e.target.value })}
+                placeholder="Enter new temp login password (min 6)"
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white"
+              />
+            </div>
+          )}
+
+          {(resetForm.resetType === 'TRANSFER' || resetForm.resetType === 'BOTH') && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">New Temporary Transfer Password *</label>
+              <input
+                type="password"
+                required
+                value={resetForm.newTransferPassword}
+                onChange={(e) => setResetForm({ ...resetForm, newTransferPassword: e.target.value })}
+                placeholder="Enter new temp transfer password (min 6)"
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white"
+              />
+            </div>
+          )}
+
           <div className="flex justify-end space-x-3 pt-4 border-t border-slate-700">
             <button
               type="button"
@@ -463,6 +553,26 @@ export default function UserManagement({ onSelectUserForDistribution }) {
         confirmText={confirmDialog.newStatus === 'INACTIVE' ? 'Deactivate User' : 'Reactivate'}
         type={confirmDialog.newStatus === 'INACTIVE' ? 'danger' : 'info'}
         isLoading={isToggling}
+      />
+
+      {/* DELETE USER CONFIRMATION DIALOG */}
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, user: null })}
+        onConfirm={handleDeleteSubmit}
+        title={`Permanently Delete User @${deleteDialog.user?.username}?`}
+        message={
+          deleteDialog.user
+            ? `Are you sure you want to permanently delete user @${deleteDialog.user.username} (${deleteDialog.user.name})?\n\nCurrent Balance: $${deleteDialog.user.balance.toLocaleString()} points.\n\n${
+                deleteDialog.user.balance > 0
+                  ? `Notice: The user's remaining balance of $${deleteDialog.user.balance.toLocaleString()} points will be refunded back to your Admin account.\n\n`
+                  : ''
+              }Warning: This action will permanently remove this user and all associated records. This action cannot be undone.`
+            : ''
+        }
+        confirmText="Delete User Permanently"
+        type="danger"
+        isLoading={isDeleting}
       />
     </div>
   );

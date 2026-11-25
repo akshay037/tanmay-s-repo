@@ -64,6 +64,14 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['Auth']
     }),
+    changeTransferPassword: builder.mutation({
+      query: (passwords) => ({
+        url: '/auth/change-transfer-password',
+        method: 'POST',
+        body: passwords
+      }),
+      invalidatesTags: ['Auth']
+    }),
 
     // Admin Management Endpoints
     getAdmins: builder.query({
@@ -149,12 +157,36 @@ export const apiSlice = createApi({
       invalidatesTags: ['User', 'Admin', 'Report', 'Audit']
     }),
     resetUserPassword: builder.mutation({
-      query: ({ id, newPassword }) => ({
+      query: ({ id, newPassword, newTransferPassword, resetType }) => ({
         url: `/users/${id}/reset-password`,
         method: 'POST',
-        body: { newPassword }
+        body: { newPassword, newTransferPassword, resetType }
       }),
       invalidatesTags: ['User', 'Audit']
+    }),
+    resetUserTransferPassword: builder.mutation({
+      query: ({ id, newTransferPassword }) => ({
+        url: `/users/${id}/reset-transfer-password`,
+        method: 'POST',
+        body: { newTransferPassword }
+      }),
+      invalidatesTags: ['User', 'Audit']
+    }),
+    deleteUser: builder.mutation({
+      async queryFn(id, _api, _extraOptions, baseQuery) {
+        let result = await baseQuery({
+          url: `/users/${id}`,
+          method: 'DELETE'
+        });
+        if (result.error && result.error.status === 404) {
+          result = await baseQuery({
+            url: `/users/${id}/delete`,
+            method: 'POST'
+          });
+        }
+        return result;
+      },
+      invalidatesTags: ['User', 'Admin', 'Point', 'Transaction', 'Report', 'Audit']
     }),
     transferUser: builder.mutation({
       query: ({ userId, newAdminId, reason }) => ({
@@ -397,6 +429,7 @@ export const {
   useLoginMutation,
   useGetMeQuery,
   useChangePasswordMutation,
+  useChangeTransferPasswordMutation,
   useGetAdminsQuery,
   useGetAdminQuery,
   useCreateAdminMutation,
@@ -410,6 +443,8 @@ export const {
   useUpdateUserMutation,
   useToggleUserStatusMutation,
   useResetUserPasswordMutation,
+  useResetUserTransferPasswordMutation,
+  useDeleteUserMutation,
   useTransferUserMutation,
   useAllocatePointsToAdminMutation,
   useDistributePointsToUserMutation,

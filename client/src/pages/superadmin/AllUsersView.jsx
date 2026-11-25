@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { useGetUsersQuery, useGetAdminsQuery, useTransferUserMutation } from '../../store/apiSlice';
+import { useGetUsersQuery, useGetAdminsQuery, useTransferUserMutation, useDeleteUserMutation } from '../../store/apiSlice';
 import Modal from '../../components/Modal';
+import ConfirmDialog from '../../components/ConfirmDialog';
 import Badge from '../../components/Badge';
 import ExportButtons from '../../components/ExportButtons';
-import { Users, Search, ArrowRightLeft, Shield, AlertCircle } from 'lucide-react';
+import { Users, Search, ArrowRightLeft, Shield, AlertCircle, Trash2 } from 'lucide-react';
 
 export default function AllUsersView() {
   const { data: users = [], isLoading } = useGetUsersQuery();
   const { data: admins = [] } = useGetAdminsQuery();
   const [transferUser, { isLoading: isTransferring }] = useTransferUserMutation();
+  const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
 
   const [search, setSearch] = useState('');
   const [adminFilter, setAdminFilter] = useState('ALL');
@@ -16,6 +18,7 @@ export default function AllUsersView() {
 
   // Transfer Modal State
   const [transferModal, setTransferModal] = useState({ isOpen: false, user: null, newAdminId: '', reason: '' });
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, user: null });
   const [error, setError] = useState('');
 
   const filteredUsers = users.filter(u => {
@@ -58,6 +61,16 @@ export default function AllUsersView() {
       setTransferModal({ isOpen: false, user: null, newAdminId: '', reason: '' });
     } catch (err) {
       setError(err?.data?.error || 'Failed to transfer user.');
+    }
+  };
+
+  const handleDeleteSubmit = async () => {
+    if (!deleteDialog.user) return;
+    try {
+      await deleteUser(deleteDialog.user.id).unwrap();
+      setDeleteDialog({ isOpen: false, user: null });
+    } catch (err) {
+      alert(err?.data?.error || 'Failed to delete user.');
     }
   };
 
@@ -188,14 +201,23 @@ export default function AllUsersView() {
                     </td>
 
                     <td className="py-3.5 px-4 text-center">
-                      <button
-                        onClick={() => openTransferModal(usr)}
-                        className="px-2.5 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-lg text-xs font-medium flex items-center space-x-1.5 mx-auto transition-colors"
-                        title="Transfer User to another Admin"
-                      >
-                        <ArrowRightLeft className="w-3.5 h-3.5" />
-                        <span>Transfer</span>
-                      </button>
+                      <div className="flex items-center justify-center space-x-1.5">
+                        <button
+                          onClick={() => openTransferModal(usr)}
+                          className="px-2.5 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-lg text-xs font-medium flex items-center space-x-1.5 transition-colors"
+                          title="Transfer User to another Admin"
+                        >
+                          <ArrowRightLeft className="w-3.5 h-3.5" />
+                          <span>Transfer</span>
+                        </button>
+                        <button
+                          onClick={() => setDeleteDialog({ isOpen: true, user: usr })}
+                          className="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 rounded-lg transition-colors"
+                          title="Delete User Account"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -273,6 +295,26 @@ export default function AllUsersView() {
           </div>
         </form>
       </Modal>
+
+      {/* DELETE USER CONFIRMATION DIALOG */}
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, user: null })}
+        onConfirm={handleDeleteSubmit}
+        title={`Permanently Delete User @${deleteDialog.user?.username}?`}
+        message={
+          deleteDialog.user
+            ? `Are you sure you want to permanently delete user @${deleteDialog.user.username} (${deleteDialog.user.name})?\n\nCurrent Balance: $${deleteDialog.user.balance.toLocaleString()} points.\n\n${
+                deleteDialog.user.balance > 0
+                  ? `Notice: The user's remaining balance of $${deleteDialog.user.balance.toLocaleString()} points will be refunded back to Admin @${deleteDialog.user.adminUsername}.\n\n`
+                  : ''
+              }Warning: This action will permanently remove this user and all associated records. This action cannot be undone.`
+            : ''
+        }
+        confirmText="Delete User Permanently"
+        type="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

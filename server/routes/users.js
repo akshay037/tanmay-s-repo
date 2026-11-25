@@ -17,6 +17,7 @@ router.get('/', requireRole('SUPER_ADMIN', 'ADMIN'), (req, res) => {
       u.username,
       u.status,
       u.must_change_password as mustChangePassword,
+      u.must_change_transfer_password as mustChangeTransferPassword,
       u.created_at as createdAt,
       u.last_login_at as lastLoginAt,
       up.name,
@@ -66,6 +67,7 @@ router.get('/:id', requireRole('SUPER_ADMIN', 'ADMIN', 'USER'), (req, res) => {
       u.username,
       u.status,
       u.must_change_password as mustChangePassword,
+      u.must_change_transfer_password as mustChangeTransferPassword,
       u.created_at as createdAt,
       u.last_login_at as lastLoginAt,
       up.name,
@@ -102,7 +104,7 @@ router.get('/:id', requireRole('SUPER_ADMIN', 'ADMIN', 'USER'), (req, res) => {
 
 // CREATE USER (Admin only, or Super Admin on behalf of Admin)
 router.post('/', requireRole('SUPER_ADMIN', 'ADMIN'), (req, res) => {
-  const { username, password, name, email, phone, notes, adminId } = req.body;
+  const { username, password, transferPassword, name, email, phone, notes, adminId } = req.body;
 
   let assignedAdminId = req.user.id;
   if (req.user.role === 'SUPER_ADMIN') {
@@ -120,6 +122,11 @@ router.post('/', requireRole('SUPER_ADMIN', 'ADMIN'), (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
   }
 
+  const initialTransferPassword = transferPassword && transferPassword.trim() ? transferPassword.trim() : password;
+  if (initialTransferPassword.length < 6) {
+    return res.status(400).json({ error: 'Transfer password must be at least 6 characters long.' });
+  }
+
   // Verify Admin exists and is active
   const ownerAdmin = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'ADMIN'").get(assignedAdminId);
   if (!ownerAdmin || ownerAdmin.status !== 'ACTIVE') {
@@ -134,12 +141,14 @@ router.post('/', requireRole('SUPER_ADMIN', 'ADMIN'), (req, res) => {
   const createUserTxn = db.transaction(() => {
     const salt = bcrypt.genSaltSync(10);
     const password_hash = bcrypt.hashSync(password, salt);
+    const transfer_salt = bcrypt.genSaltSync(10);
+    const transfer_password_hash = bcrypt.hashSync(initialTransferPassword, transfer_salt);
 
     const insertUser = db.prepare(`
-      INSERT INTO users (username, password_hash, role, status, must_change_password)
-      VALUES (?, ?, 'USER', 'ACTIVE', 1)
+      INSERT INTO users (username, password_hash, transfer_password_hash, role, status, must_change_password, must_change_transfer_password)
+      VALUES (?, ?, ?, 'USER', 'ACTIVE', 1, 1)
     `);
-    const userRes = insertUser.run(username.trim(), password_hash);
+    const userRes = insertUser.run(username.trim(), password_hash, transfer_password_hash);
     const newUserId = userRes.lastInsertRowid;
 
     db.prepare(`
@@ -170,7 +179,8 @@ router.post('/', requireRole('SUPER_ADMIN', 'ADMIN'), (req, res) => {
         username: username.trim(),
         name: name.trim(),
         adminId: assignedAdminId,
-        mustChangePassword: true
+        mustChangePassword: true,
+        mustChangeTransferPassword: true
       }
     });
   } catch (err) {
@@ -262,13 +272,84 @@ router.patch('/:id/status', requireRole('SUPER_ADMIN', 'ADMIN'), (req, res) => {
   return res.json({ message: `User account has been ${status === 'ACTIVE' ? 'enabled' : 'deactivated'}.` });
 });
 
-// RESET USER PASSWORD
+// RESET USER PASSWORD (LOGIN OR TRANSFER OR BOTH)
 router.post('/:id/reset-password', requireRole('SUPER_ADMIN', 'ADMIN'), (req, res) => {
   const targetUserId = parseInt(req.params.id, 10);
-  const { newPassword } = req.body;
+  const { newPassword, newTransferPassword, resetType = 'LOGIN' } = req.body;
 
-  if (!newPassword || newPassword.length < 6) {
-    return res.status(400).json({ error: 'New temporary password must be at least 6 characters long.' });
+  const user = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'USER'").get(targetUserId);
+  if (!user) {
+    return res.status(404).json({ error: 'User account not found.' });
+  }
+
+  const profile = db.prepare('SELECT admin_id FROM user_profiles WHERE user_id = ?').get(targetUserId);
+  if (req.user.role === 'ADMIN' && profile.admin_id !== req.user.id) {
+    return res.status(403).json({ error: 'Access denied. You can only reset passwords for users belonging to your Admin account.' });
+  }
+
+  let resetLogin = resetType === 'LOGIN' || resetType === 'BOTH' || (newPassword && !newTransferPassword);
+  let resetTransfer = resetType === 'TRANSFER' || resetType === 'BOTH' || (newTransferPassword && !newPassword);
+
+  if (!resetLogin && !resetTransfer) {
+    resetLogin = true;
+  }
+
+  if (resetLogin && (!newPassword || newPassword.length < 6)) {
+    return res.status(400).json({ error: 'New temporary login password must be at least 6 characters long.' });
+  }
+  if (resetTransfer && (!newTransferPassword || newTransferPassword.length < 6)) {
+    return res.status(400).json({ error: 'New temporary transfer password must be at least 6 characters long.' });
+  }
+
+  const updates = [];
+  const params = [];
+
+  if (resetLogin) {
+    const salt = bcrypt.genSaltSync(10);
+    const password_hash = bcrypt.hashSync(newPassword, salt);
+    updates.push('password_hash = ?, must_change_password = 1, failed_login_attempts = 0, locked_until = NULL');
+    params.push(password_hash);
+  }
+
+  if (resetTransfer) {
+    const transferSalt = bcrypt.genSaltSync(10);
+    const transfer_password_hash = bcrypt.hashSync(newTransferPassword, transferSalt);
+    updates.push('transfer_password_hash = ?, must_change_transfer_password = 1');
+    params.push(transfer_password_hash);
+  }
+
+  updates.push('updated_at = CURRENT_TIMESTAMP');
+  params.push(targetUserId);
+
+  db.prepare(`
+    UPDATE users
+    SET ${updates.join(', ')}
+    WHERE id = ?
+  `).run(...params);
+
+  logAudit(req, {
+    action: resetLogin && resetTransfer ? 'RESET_USER_PASSWORDS' : (resetTransfer ? 'RESET_USER_TRANSFER_PASSWORD' : 'RESET_USER_PASSWORD'),
+    targetType: 'USER',
+    targetId: targetUserId,
+    targetName: user.username,
+    newValue: { resetLogin, resetTransfer }
+  });
+
+  const msgParts = [];
+  if (resetLogin) msgParts.push('login password (required on next login)');
+  if (resetTransfer) msgParts.push('transfer password (required on next transfer)');
+  sendNotification(targetUserId, 'Password Reset', `Your ${msgParts.join(' and ')} was reset by your Admin.`, 'INFO');
+
+  return res.json({ message: `User ${msgParts.join(' and ')} reset successfully.` });
+});
+
+// RESET USER TRANSFER PASSWORD SPECIFICALLY
+router.post('/:id/reset-transfer-password', requireRole('SUPER_ADMIN', 'ADMIN'), (req, res) => {
+  const targetUserId = parseInt(req.params.id, 10);
+  const { newTransferPassword } = req.body;
+
+  if (!newTransferPassword || newTransferPassword.length < 6) {
+    return res.status(400).json({ error: 'New temporary transfer password must be at least 6 characters long.' });
   }
 
   const user = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'USER'").get(targetUserId);
@@ -282,25 +363,106 @@ router.post('/:id/reset-password', requireRole('SUPER_ADMIN', 'ADMIN'), (req, re
   }
 
   const salt = bcrypt.genSaltSync(10);
-  const password_hash = bcrypt.hashSync(newPassword, salt);
+  const transfer_password_hash = bcrypt.hashSync(newTransferPassword, salt);
 
   db.prepare(`
     UPDATE users
-    SET password_hash = ?, must_change_password = 1, failed_login_attempts = 0, locked_until = NULL, updated_at = CURRENT_TIMESTAMP
+    SET transfer_password_hash = ?, must_change_transfer_password = 1, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(password_hash, targetUserId);
+  `).run(transfer_password_hash, targetUserId);
 
   logAudit(req, {
-    action: 'RESET_USER_PASSWORD',
+    action: 'RESET_USER_TRANSFER_PASSWORD',
     targetType: 'USER',
     targetId: targetUserId,
     targetName: user.username
   });
 
-  sendNotification(targetUserId, 'Password Reset', 'Your password was reset by your Admin. You must change your password on next login.', 'INFO');
+  sendNotification(targetUserId, 'Transfer Password Reset', 'Your transfer password was reset by your Admin. You must change your transfer password before making user-to-user transfers.', 'INFO');
 
-  return res.json({ message: 'User password reset successfully. User must change password on next login.' });
+  return res.json({ message: 'User transfer password reset successfully. User must change transfer password before next transfer.' });
 });
+
+// DELETE USER ACCOUNT (ADMIN & SUPER ADMIN)
+const handleDeleteUser = (req, res) => {
+  const targetUserId = parseInt(req.params.id, 10);
+
+  const user = db.prepare("SELECT * FROM users WHERE id = ? AND role = 'USER'").get(targetUserId);
+  if (!user) {
+    return res.status(404).json({ error: 'User account not found.' });
+  }
+
+  const profile = db.prepare('SELECT * FROM user_profiles WHERE user_id = ?').get(targetUserId);
+  if (!profile) {
+    return res.status(404).json({ error: 'User profile not found.' });
+  }
+
+  if (req.user.role === 'ADMIN' && profile.admin_id !== req.user.id) {
+    return res.status(403).json({ error: 'Access denied. You can only delete users belonging to your Admin account.' });
+  }
+
+  const deleteTxn = db.transaction(() => {
+    // 1. Check user point account balance
+    const userPointAccount = db.prepare("SELECT * FROM point_accounts WHERE owner_id = ? AND owner_type = 'USER'").get(targetUserId);
+    const userBalance = userPointAccount ? userPointAccount.balance : 0;
+
+    // Refund remaining user points directly to their Admin's point account
+    let refunded = 0;
+    if (userBalance > 0) {
+      refunded = userBalance;
+      db.prepare(`
+        UPDATE point_accounts
+        SET balance = balance + ?, total_received = total_received + ?, updated_at = CURRENT_TIMESTAMP
+        WHERE owner_id = ? AND owner_type = 'ADMIN'
+      `).run(userBalance, userBalance, profile.admin_id);
+    }
+
+    // 2. Cascade delete all linked records to avoid FK violations
+    db.prepare('DELETE FROM notifications WHERE user_id = ?').run(targetUserId);
+    db.prepare('DELETE FROM casino_bets WHERE user_id = ?').run(targetUserId);
+    db.prepare('DELETE FROM lotto_bets WHERE user_id = ?').run(targetUserId);
+    db.prepare('DELETE FROM user_withdrawal_requests WHERE user_id = ?').run(targetUserId);
+    db.prepare('DELETE FROM user_transfers WHERE sender_id = ? OR receiver_id = ?').run(targetUserId, targetUserId);
+    if (userPointAccount) {
+      db.prepare('DELETE FROM point_transactions WHERE created_by = ? OR from_account_id = ? OR to_account_id = ?')
+        .run(targetUserId, userPointAccount.id, userPointAccount.id);
+      db.prepare('DELETE FROM point_accounts WHERE id = ?').run(userPointAccount.id);
+    }
+    db.prepare('DELETE FROM admin_user_transfers WHERE user_id = ?').run(targetUserId);
+    db.prepare('DELETE FROM user_profiles WHERE user_id = ?').run(targetUserId);
+    db.prepare('DELETE FROM users WHERE id = ?').run(targetUserId);
+
+    logAudit(req, {
+      action: 'DELETE_USER',
+      targetType: 'USER',
+      targetId: targetUserId,
+      targetName: user.username,
+      oldValue: {
+        username: user.username,
+        name: profile.name,
+        adminId: profile.admin_id,
+        refundedBalance: refunded
+      }
+    });
+
+    return refunded;
+  });
+
+  try {
+    const refundedBalance = deleteTxn();
+    return res.json({
+      message: `User account @${user.username} has been permanently deleted.${refundedBalance > 0 ? ` ${refundedBalance.toLocaleString()} points were refunded back to Admin.` : ''}`,
+      refundedBalance
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to delete user account.' });
+  }
+};
+
+router.delete('/:id', requireRole('SUPER_ADMIN', 'ADMIN'), handleDeleteUser);
+router.post('/:id/delete', requireRole('SUPER_ADMIN', 'ADMIN'), handleDeleteUser);
+router.delete('/delete/:id', requireRole('SUPER_ADMIN', 'ADMIN'), handleDeleteUser);
+router.post('/delete/:id', requireRole('SUPER_ADMIN', 'ADMIN'), handleDeleteUser);
 
 // TRANSFER USER TO ANOTHER ADMIN (SUPER ADMIN ONLY)
 router.post('/:id/transfer', requireRole('SUPER_ADMIN'), (req, res) => {
@@ -383,5 +545,7 @@ router.post('/me/usdt-address', (req, res) => {
   });
   return res.json({ message: 'USDT Address saved and locked successfully.', usdtAddress: cleanAddress });
 });
+
+router.handleDeleteUser = handleDeleteUser;
 
 module.exports = router;

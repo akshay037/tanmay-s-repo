@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './Modal';
+import { useDispatch, useSelector } from 'react-redux';
+import { updateUser } from '../store/authSlice';
 import {
   useGetMeQuery,
   useVerifyRecipientMutation,
-  useUserTransferMutation
+  useUserTransferMutation,
+  useChangeTransferPasswordMutation
 } from '../store/apiSlice';
 import {
   ArrowLeftRight,
@@ -15,15 +18,23 @@ import {
   Check,
   User,
   Lock,
-  Loader2
+  Loader2,
+  KeyRound,
+  ShieldAlert
 } from 'lucide-react';
 
 export default function TransferModal({ isOpen, onClose, currentBalance = 0 }) {
-  const { data: meData, refetch: refetchMe } = useGetMeQuery(undefined, { skip: !isOpen });
+  const dispatch = useDispatch();
+  const authUser = useSelector((state) => state.auth.user);
+  const { data: meData, refetch: refetchMe } = useGetMeQuery();
   const [verifyRecipient, { isLoading: isVerifying }] = useVerifyRecipientMutation();
   const [userTransfer, { isLoading: isSubmitting }] = useUserTransferMutation();
+  const [changeTransferPassword, { isLoading: isUpdatingPassword }] = useChangeTransferPasswordMutation();
 
   const liveBalance = meData?.pointAccount?.balance ?? (meData?.balance !== undefined ? meData.balance : currentBalance);
+  const requiresTransferPasswordChange = Boolean(meData?.mustChangeTransferPassword ?? authUser?.mustChangeTransferPassword);
+  // If the user has no transfer_password_hash set yet, they don't have a temporary password to verify
+  const hasTransferPassword = meData?.hasTransferPassword ?? authUser?.hasTransferPassword ?? true;
 
   // Form State
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,6 +49,14 @@ export default function TransferModal({ isOpen, onClose, currentBalance = 0 }) {
   const [transferSuccess, setTransferSuccess] = useState(null);
   const [copiedCode, setCopiedCode] = useState(false);
 
+  // Transfer Password Change State
+  const [isChangingTransferPassword, setIsChangingTransferPassword] = useState(false);
+  const [currentTransferPassword, setCurrentTransferPassword] = useState('');
+  const [newTransferPassword, setNewTransferPassword] = useState('');
+  const [confirmTransferPassword, setConfirmTransferPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+
   // Reset modal when opened/closed
   useEffect(() => {
     if (!isOpen) {
@@ -50,6 +69,12 @@ export default function TransferModal({ isOpen, onClose, currentBalance = 0 }) {
       setSubmitError('');
       setTransferSuccess(null);
       setCopiedCode(false);
+      setIsChangingTransferPassword(false);
+      setCurrentTransferPassword('');
+      setNewTransferPassword('');
+      setConfirmTransferPassword('');
+      setPasswordError('');
+      setPasswordSuccess('');
     } else {
       refetchMe();
     }
@@ -109,7 +134,54 @@ export default function TransferModal({ isOpen, onClose, currentBalance = 0 }) {
       });
       refetchMe();
     } catch (err) {
+      if (err?.data?.mustChangeTransferPassword) {
+        setIsChangingTransferPassword(true);
+      }
       setSubmitError(err?.data?.error || 'Failed to complete transfer.');
+    }
+  };
+
+  const handleTransferPasswordSubmit = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    // Only require current/temp password if the user actually has one set
+    if (hasTransferPassword && !currentTransferPassword) {
+      setPasswordError(
+        requiresTransferPasswordChange
+          ? 'Temporary transfer password is required.'
+          : 'Current transfer password is required.'
+      );
+      return;
+    }
+
+    if (newTransferPassword.length < 6) {
+      setPasswordError('New transfer password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newTransferPassword !== confirmTransferPassword) {
+      setPasswordError('Transfer passwords do not match.');
+      return;
+    }
+
+    try {
+      const payload = {
+        currentPassword: currentTransferPassword,
+        newPassword: newTransferPassword
+      };
+      const res = await changeTransferPassword(payload).unwrap();
+      setPasswordSuccess(res.message || 'Transfer password updated successfully!');
+      dispatch(updateUser({ mustChangeTransferPassword: false }));
+      await refetchMe();
+      setTimeout(() => {
+        setIsChangingTransferPassword(false);
+        setPasswordSuccess('');
+        setPassword(newTransferPassword);
+      }, 1000);
+    } catch (err) {
+      setPasswordError(err?.data?.error || 'Failed to update transfer password. Please check your temporary password.');
     }
   };
 
@@ -124,10 +196,120 @@ export default function TransferModal({ isOpen, onClose, currentBalance = 0 }) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Transfer Points (User-to-User)"
+      title={requiresTransferPasswordChange || isChangingTransferPassword ? 'Password Change Required' : 'Transfer Points (User-to-User)'}
       maxWidth="max-w-md"
     >
-      {transferSuccess ? (
+      {requiresTransferPasswordChange || isChangingTransferPassword ? (
+        <div className="space-y-4 font-sans text-slate-800 animate-fadeIn">
+          <div className="flex items-start space-x-3 p-3 bg-amber-50 border-2 border-amber-200 rounded-2xl text-amber-900 text-xs font-semibold">
+            <ShieldAlert className="w-5 h-5 flex-shrink-0 text-amber-600 mt-0.5" />
+            <p>
+              For security reasons, you are required to change your temporary transfer password before transferring points.
+            </p>
+          </div>
+
+          {passwordError && (
+            <div className="p-3 bg-rose-50 border-2 border-rose-300 rounded-2xl text-rose-700 text-xs font-bold flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-600" />
+              <span>{passwordError}</span>
+            </div>
+          )}
+
+          {passwordSuccess && (
+            <div className="p-3 bg-emerald-50 border-2 border-emerald-300 rounded-2xl text-emerald-800 text-xs font-bold flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
+              <span>{passwordSuccess}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleTransferPasswordSubmit} className="space-y-4 mt-2">
+            {/* Only show temp/current password field if user has a hash to verify against */}
+            {hasTransferPassword && (
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">
+                {requiresTransferPasswordChange ? 'Temporary Transfer Password *' : 'Current Transfer Password *'}
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  required
+                  value={currentTransferPassword}
+                  onChange={(e) => setCurrentTransferPassword(e.target.value)}
+                  placeholder={requiresTransferPasswordChange ? 'Same as your current login password' : 'Enter current transfer password'}
+                  className="w-full pl-9 pr-3 py-2.5 bg-red-50/40 border-2 border-red-200 rounded-2xl text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-red-500 focus:bg-white"
+                />
+                <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              </div>
+              {requiresTransferPasswordChange && (
+                <p className="text-[10px] text-slate-500 font-semibold mt-1 pl-1">
+                  💡 Your temporary transfer password is the same as your login password.
+                </p>
+              )}
+            </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">
+                New Transfer Password *
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  required
+                  value={newTransferPassword}
+                  onChange={(e) => setNewTransferPassword(e.target.value)}
+                  placeholder="Enter at least 6 characters"
+                  className="w-full pl-9 pr-3 py-2.5 bg-red-50/40 border-2 border-red-200 rounded-2xl text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-red-500 focus:bg-white"
+                />
+                <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">
+                Confirm Transfer New Password *
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  required
+                  value={confirmTransferPassword}
+                  onChange={(e) => setConfirmTransferPassword(e.target.value)}
+                  placeholder="Re-enter new transfer password"
+                  className="w-full pl-9 pr-3 py-2.5 bg-red-50/40 border-2 border-red-200 rounded-2xl text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-red-500 focus:bg-white"
+                />
+                <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 pt-2">
+              {!requiresTransferPasswordChange && (
+                <button
+                  type="button"
+                  onClick={() => setIsChangingTransferPassword(false)}
+                  className="w-1/3 py-2.5 border-2 border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition-all"
+                >
+                  Back
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={isUpdatingPassword}
+                className={`${!requiresTransferPasswordChange ? 'w-2/3' : 'w-full'} py-3 px-4 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-red-500/25 transition-all disabled:opacity-50 flex items-center justify-center space-x-2`}
+              >
+                {isUpdatingPassword ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Updating Transfer Password...</span>
+                  </>
+                ) : (
+                  <span>Update Transfer Password</span>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : transferSuccess ? (
         /* Success Screen */
         <div className="space-y-5 py-2 text-center animate-fadeIn">
           <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner border border-emerald-200">
@@ -395,12 +577,28 @@ export default function TransferModal({ isOpen, onClose, currentBalance = 0 }) {
             </div>
           </div>
 
-          {/* 3. Security Password Confirmation */}
+          {/* 3. Transfer Password Confirmation */}
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-700 flex items-center space-x-1">
-              <Lock className="w-3.5 h-3.5 text-red-600" />
-              <span>3. Your Password (Required to Authorize)</span>
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-700 flex items-center space-x-1">
+                <Lock className="w-3.5 h-3.5 text-red-600" />
+                <span>3. Transfer Password (Required to Authorize)</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setPasswordError('');
+                  setPasswordSuccess('');
+                  setCurrentTransferPassword('');
+                  setNewTransferPassword('');
+                  setConfirmTransferPassword('');
+                  setIsChangingTransferPassword(true);
+                }}
+                className="text-[11px] text-red-600 hover:text-red-700 underline font-semibold transition-colors"
+              >
+                Change Transfer Password
+              </button>
+            </div>
             <input
               type="password"
               value={password}
@@ -408,7 +606,7 @@ export default function TransferModal({ isOpen, onClose, currentBalance = 0 }) {
                 setPassword(e.target.value);
                 setSubmitError('');
               }}
-              placeholder="Enter your login password"
+              placeholder="Enter your transfer password"
               className="w-full px-3 py-2 text-xs bg-slate-50 border-2 border-slate-200 focus:border-red-500 rounded-xl outline-none font-medium transition-all"
             />
           </div>

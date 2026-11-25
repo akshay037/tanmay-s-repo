@@ -77,6 +77,12 @@ if (pointRoutes.handleUserWithdrawal) {
   app.post('/api/points/user-withdrawal-request', authenticateToken, pointRoutes.handleUserWithdrawal);
   app.post('/api/user-withdrawal-request', authenticateToken, pointRoutes.handleUserWithdrawal);
 }
+if (userRoutes.handleDeleteUser) {
+  app.delete('/api/users/:id', authenticateToken, requireRole('SUPER_ADMIN', 'ADMIN'), userRoutes.handleDeleteUser);
+  app.post('/api/users/:id/delete', authenticateToken, requireRole('SUPER_ADMIN', 'ADMIN'), userRoutes.handleDeleteUser);
+  app.delete('/api/user/:id', authenticateToken, requireRole('SUPER_ADMIN', 'ADMIN'), userRoutes.handleDeleteUser);
+  app.post('/api/user/:id/delete', authenticateToken, requireRole('SUPER_ADMIN', 'ADMIN'), userRoutes.handleDeleteUser);
+}
 
 // Serve frontend static assets in production build
 const clientBuildPath = path.join(__dirname, '../client/dist');

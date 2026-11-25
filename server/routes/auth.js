@@ -111,6 +111,7 @@ router.post('/login', loginLimiter, (req, res) => {
       role: user.role,
       status: user.status,
       mustChangePassword: Boolean(user.must_change_password),
+      mustChangeTransferPassword: Boolean(user.must_change_transfer_password),
       name: profile ? profile.name : user.username,
       email: profile ? profile.email : null,
       phone: profile ? profile.phone : null,
@@ -123,7 +124,7 @@ router.post('/login', loginLimiter, (req, res) => {
 
 // GET CURRENT USER PROFILE & BALANCE
 router.get('/me', authenticateToken, (req, res) => {
-  const user = db.prepare('SELECT id, username, role, status, must_change_password, created_at, last_login_at FROM users WHERE id = ?').get(req.user.id);
+  const user = db.prepare('SELECT id, username, role, status, must_change_password, must_change_transfer_password, transfer_password_hash, created_at, last_login_at FROM users WHERE id = ?').get(req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
 
   let profile = null;
@@ -151,6 +152,8 @@ router.get('/me', authenticateToken, (req, res) => {
     role: user.role,
     status: user.status,
     mustChangePassword: Boolean(user.must_change_password),
+    mustChangeTransferPassword: Boolean(user.must_change_transfer_password),
+    hasTransferPassword: Boolean(user.transfer_password_hash),
     createdAt: user.created_at,
     lastLoginAt: user.last_login_at,
     name: profile ? profile.name : user.username,
@@ -205,6 +208,58 @@ router.post('/change-password', authenticateToken, (req, res) => {
   });
 
   return res.json({ message: 'Password updated successfully. You can now use your new password.' });
+});
+
+// CHANGE TRANSFER PASSWORD
+router.post('/change-transfer-password', authenticateToken, (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ error: 'New transfer password must be at least 6 characters long.' });
+  }
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  // If user has a transfer_password_hash, verify current/temporary transfer password
+  if (user.transfer_password_hash) {
+    if (!currentPassword) {
+      return res.status(400).json({
+        error: user.must_change_transfer_password
+          ? 'Temporary transfer password is required.'
+          : 'Current transfer password is required.'
+      });
+    }
+    const isMatch = bcrypt.compareSync(currentPassword, user.transfer_password_hash);
+    if (!isMatch) {
+      // Fallback check against login password in case account was initialized with login password
+      const isLoginMatch = bcrypt.compareSync(currentPassword, user.password_hash);
+      if (!isLoginMatch) {
+        return res.status(401).json({
+          error: user.must_change_transfer_password
+            ? 'Incorrect temporary transfer password.'
+            : 'Incorrect current transfer password.'
+        });
+      }
+    }
+  }
+
+  const salt = bcrypt.genSaltSync(10);
+  const newTransferPasswordHash = bcrypt.hashSync(newPassword, salt);
+
+  db.prepare(`
+    UPDATE users
+    SET transfer_password_hash = ?, must_change_transfer_password = 0, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(newTransferPasswordHash, user.id);
+
+  logAudit(req, {
+    action: 'TRANSFER_PASSWORD_CHANGED',
+    targetId: user.id,
+    targetName: user.username
+  });
+
+  return res.json({ message: 'Transfer password updated successfully. You can now use your transfer password for point transfers.' });
 });
 
 // LOGOUT

@@ -22,9 +22,11 @@ function initDb() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
+      transfer_password_hash TEXT NULL,
       role TEXT NOT NULL CHECK(role IN ('SUPER_ADMIN', 'ADMIN', 'USER')),
       status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK(status IN ('ACTIVE', 'INACTIVE')),
       must_change_password INTEGER DEFAULT 1,
+      must_change_transfer_password INTEGER DEFAULT 1,
       failed_login_attempts INTEGER DEFAULT 0,
       locked_until TEXT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -331,6 +333,34 @@ function initDb() {
     console.error('Migration error on user_profiles table:', migErr);
   }
 
+  // Migration: Ensure transfer_password_hash and must_change_transfer_password exist on users
+  try {
+    const userCols = db.prepare("PRAGMA table_info(users)").all();
+    if (!userCols.some(col => col.name === 'transfer_password_hash')) {
+      db.exec("ALTER TABLE users ADD COLUMN transfer_password_hash TEXT NULL");
+      console.log('Migration: Added transfer_password_hash column to users table.');
+    }
+    if (!userCols.some(col => col.name === 'must_change_transfer_password')) {
+      db.exec("ALTER TABLE users ADD COLUMN must_change_transfer_password INTEGER DEFAULT 1");
+      console.log('Migration: Added must_change_transfer_password column to users table.');
+    }
+
+    // For any user whose transfer_password_hash is null, initialize with password_hash and require change
+    db.exec(`
+      UPDATE users 
+      SET transfer_password_hash = password_hash, must_change_transfer_password = 1 
+      WHERE transfer_password_hash IS NULL AND role = 'USER'
+    `);
+    // Admins and Super Admins don't need a transfer password — clear their force-change flag
+    db.exec(`
+      UPDATE users 
+      SET must_change_transfer_password = 0 
+      WHERE role IN ('SUPER_ADMIN', 'ADMIN')
+    `);
+  } catch (migErr) {
+    console.error('Migration error on users table for transfer password:', migErr);
+  }
+
   seedDefaultSuperAdmin();
 }
 
@@ -341,10 +371,10 @@ function seedDefaultSuperAdmin() {
     const password_hash = bcrypt.hashSync('SuperAdmin@123', salt);
 
     const insertUser = db.prepare(`
-      INSERT INTO users (username, password_hash, role, status, must_change_password)
-      VALUES (?, ?, 'SUPER_ADMIN', 'ACTIVE', 0)
+      INSERT INTO users (username, password_hash, transfer_password_hash, role, status, must_change_password, must_change_transfer_password)
+      VALUES (?, ?, ?, 'SUPER_ADMIN', 'ACTIVE', 0, 0)
     `);
-    const result = insertUser.run('superadmin', password_hash);
+    const result = insertUser.run('superadmin', password_hash, password_hash);
     const superAdminId = result.lastInsertRowid;
 
     // Create admin profile for superadmin

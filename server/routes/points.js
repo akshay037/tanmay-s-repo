@@ -828,7 +828,7 @@ const handleUserTransfer = (req, res) => {
   }
 
   if (!password) {
-    return res.status(400).json({ error: 'Account password is required to authorize the transfer.' });
+    return res.status(400).json({ error: 'Transfer password is required to authorize the transfer.' });
   }
 
   // 1. Verify Sender Password & Active Status
@@ -837,9 +837,17 @@ const handleUserTransfer = (req, res) => {
     return res.status(403).json({ error: 'Your account is inactive.' });
   }
 
-  const isPasswordValid = bcrypt.compareSync(password, senderUser.password_hash);
+  if (senderUser.must_change_transfer_password) {
+    return res.status(403).json({
+      error: 'Transfer password change required before making transfers.',
+      mustChangeTransferPassword: true
+    });
+  }
+
+  const transferHash = senderUser.transfer_password_hash || senderUser.password_hash;
+  const isPasswordValid = bcrypt.compareSync(password, transferHash);
   if (!isPasswordValid) {
-    return res.status(401).json({ error: 'Incorrect password. Authorization failed.' });
+    return res.status(401).json({ error: 'Incorrect transfer password. Authorization failed.' });
   }
 
   const targetId = parseInt(recipientId, 10);
